@@ -27,6 +27,7 @@ summary(dfMeanimp)
 
 xyplot(miceoutMean, active + bmi + height + weight ~ age + rest)
 xyplot(miceoutReg, active + bmi + height + weight ~ age + rest)
+#There are no uneven distributions of the NAs: they seem equally distributed over the other vars.
 
 modelCom <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfcom)
 modelList <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfinc)
@@ -72,3 +73,54 @@ dfweight <- data.frame(complete = dfcom$weight,
 ggplot(gather(dfactive), aes(value)) + 
   geom_histogram(bins = 10) + 
   facet_wrap(~key, scales = 'free_x')
+
+ggplot(gather(dfbmi), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+ggplot(gather(dfheight), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+ggplot(gather(dfweight), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+
+#Monotone data; visual analysis
+#If BMI is missing, then WEIGHT is always missing.
+#If HEIGHT is missing, then WEIGHT is always missing; but NOT BMI
+#If ACTIVE is missing, then WEIGHT is always missing
+#If SMOKE is missing, then ACTIVE and WEIGHT are always missing.
+
+df_missing_lowint <- dfinc[dfinc$intensity == "low",]
+df_missing_medint <- dfinc[dfinc$intensity == "moderate",]
+df_missing_hiint <- dfinc[dfinc$intensity == "high",]
+vis_miss(df_missing_lowint)
+md.pattern(df_missing_lowint)
+
+
+
+md.pattern(df_missing_lowint, plot = FALSE)
+
+pc <- md.pairs(dfinc)
+pc
+round(100 * pc$mr/(pc$mr+pc$mm))
+round(100 * pc$rm/(pc$rm+pc$rr))
+
+pl <- md.pairs(df_missing_lowint)
+pl
+round(100 * pl$mr/(pl$mr+pl$mm)) 
+round(100 * pl$rm/(pl$rm+pl$rr))
+
+pm <- md.pairs(df_missing_medint)
+pm
+round(100 * pm$mr/(pm$mr+pm$mm)) 
+round(100 * pm$rm/(pm$rm+pm$rr))
+
+ph <- md.pairs(df_missing_hiint)
+ph
+round(100 * ph$mr/(ph$mr+ph$mm))
+round(100 * ph$rm/(ph$rm+ph$rr))
+
+
