@@ -11,6 +11,8 @@ int_h <- sum(is.na(subset(data, intensity  == "high")))/nrow(subset(data, intens
 c_smoke_y <- c(smoke_y, smoke_y)
 c_smoke_n <- c(smoke_n, smoke_n)
 c_smoke <- data.frame("yes" = c_smoke_y, "no" = c_smoke_n)
+c_smoke
+c_sex_f <- c(sex_f, sex_f)
 c_sex_m <- c(sex_m, sex_m)
 c_int_l <- c(int_l, int_l)
 c_int_m <- c(int_m, int_m)

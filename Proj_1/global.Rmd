@@ -1,0 +1,85 @@
+---
+title: "Global"
+author: "g9"
+date: "3/10/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r libraries}
+library(mice)
+library(dplyr)
+library(ggplot2)
+library(naniar)
+```
+
+
+```{r data}
+dfcom <- readRDS("complete_data.rds")
+dfinc <- readRDS("incomplete_data_g9.rds")
+dfimp_listwise <- dfinc
+
+```
+
+## Data Exploration
+
+## Model for regressing heart diff based on age, smoke, and BMI
+```{r}
+#Scientifically interesting model:
+dfcom$hrtdif <- dfcom$active - dfcom$rest
+dfimp_listwise$heartdif <- dfimp_listwise$active - dfimp_listwise$rest
+scintcom <- lm(hrtdif ~ age + smoke + bmi, data = dfcom)
+scintimp_listwise <- lm(heartdif ~ age + smoke + bmi, data = dfimp_listwise, na.action = )
+summary(scintcom)
+summary(scintimp_listwise)
+summary(model, fit.measures = "standard")
+pr <- predict(scintcom, test.smoke)
+pr.nonNA <- pr
+pr.nonNA[!is.na(pr.nonNA)] <- 1
+pr.nonNA[is.na(pr.nonNA)] <- 0
+
+test.nonNA <- test.smoke["smoke"]
+test.nonNA[!is.na(test.nonNA)] <- 1
+test.nonNA[is.na(test.nonNA)] <- 0
+```
+## Imputation
+
+```{r}
+miceoutMean <- mice(dfinc,
+                method = ifelse(colnames(dfinc) == "smoke", "logreg", "mean"),
+                m = 1,
+                maxit = 1)
+dfMeanimp <- complete(miceoutMean)
+
+summary(dfMeanimp)
+summary(dfinc)
+summary(dfcom)
+
+miceoutReg <- mice(dfinc,
+                   method = ifelse(colnames(dfinc) == "smoke", "logreg", "norm.predict"),
+                   m = 1,
+                   maxit = 1)
+dfRegimp <- complete(miceoutReg)
+
+summary(dfRegimp)
+summary(dfMeanimp)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
