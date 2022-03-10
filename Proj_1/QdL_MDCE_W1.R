@@ -42,3 +42,26 @@ mcar_test(dfinc)
 #Data that can be CALCULATED:
 #Height and BMI present, but not weight: 22+5=27 cases
 
+#Formula: BMI = weight (kg) / height (m)^2
+#weight = 
+testdf <- dfinc
+testdf$weight2 <- testdf$weight
+testdf$weight2 <- testdf$bmi * (testdf$height / 100)^2
+testdf$height2 <- testdf$height
+testdf$height2 <- 100 * sqrt(testdf$weight / testdf$bmi)
+
+
+lapply(testdf$weight, if (is.na(testdf$weight) == TRUE) return("Y"))
+testdf$missingweight <- is.na(testdf$weight)
+testdf$missingheight <- is.na(testdf$height)
+testdf$missingbmi <- is.na(testdf$bmi)
+
+
+testdf$weight2 <- NULL
+if (testdf$missingweight == TRUE) {
+  if(testdf$missingheight == FALSE) {
+    if(testdf$missingbmi == FALSE) {
+      testdf$weight2 <- testdf$bmi * (testdf$height / 100)^2
+    }
+  }
+}
