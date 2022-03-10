@@ -20,6 +20,7 @@ library(mice)
 library(dplyr)
 library(ggplot2)
 library(naniar)
+library(tidyr)
 ```
 
 
@@ -51,7 +52,7 @@ test.nonNA <- test.smoke["smoke"]
 test.nonNA[!is.na(test.nonNA)] <- 1
 test.nonNA[is.na(test.nonNA)] <- 0
 ```
-## Imputation
+## Ad hoc
 
 ```{r}
 miceoutMean <- mice(dfinc,
@@ -73,13 +74,149 @@ dfRegimp <- complete(miceoutReg)
 summary(dfRegimp)
 summary(dfMeanimp)
 ```
+```{r}
+
+xyplot(miceoutMean, active + bmi + height + weight ~ age + rest)
+xyplot(miceoutReg, active + bmi + height + weight ~ age + rest)
+```
+```{r}
+
+modelCom <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfcom)
+modelList <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfinc)
+modelMean <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfMeanimp)
+modelReg <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfRegimp)
+summary(modelCom)
+summary(modelList)
+summary(modelMean)
+summary(modelReg)
+```
+
+```{r}
+
+dfactive <- data.frame(complete = dfcom$active,
+                       listwise = dfinc$active,
+                       meanimp = dfMeanimp$active,
+                       regimp = dfRegimp$active)
+
+dfbmi <- data.frame(complete = dfcom$bmi,
+                    listwise = dfinc$bmi,
+                    meanimp = dfMeanimp$bmi,
+                    regimp = dfRegimp$bmi)
+
+dfheight <- data.frame(complete = dfcom$height,
+                      listwise = dfinc$height,
+                      meanimp = dfMeanimp$height,
+                      regimp = dfRegimp$height)
+
+dfweight <- data.frame(complete = dfcom$weight,
+                       listwise = dfinc$weight,
+                       meanimp = dfMeanimp$weight,
+                       regimp = dfRegimp$weight)
+
+
+ggplot(gather(dfactive), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+ggplot(gather(dfbmi), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+ggplot(gather(dfheight), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+ggplot(gather(dfweight), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+```
+```{r}
+
+cactive <- c(dfcom$active,
+                       dfinc$active,
+                       dfMeanimp$active,
+                       dfRegimp$active)
+dfactive.names <- c()
+dfactive.names[0:306] <- 'Complete'
+dfactive.names[307:612] <- 'Listwise'
+dfactive.names[613:918] <- 'Mean Imputation'
+dfactive.names[919:1224] <- 'Reg Imp'
+
+dfactive <- data.frame(active = cactive, names=dfactive.names)
+ggplot(dfactive, aes(x=active, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cbmi <- c(dfcom$bmi,
+                    dfinc$bmi,
+                    dfMeanimp$bmi,
+                    dfRegimp$bmi)
+
+dfbmi <- data.frame(bmi = cbmi, names = dfactive.names)
+ggplot(dfbmi, aes(x=bmi, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cheight <- c(dfcom$height,
+                      dfinc$height,
+                      dfMeanimp$height,
+                      dfRegimp$height)
+dfheight <- data.frame(height = cheight, names = dfactive.names)
+ggplot(dfheight, aes(x=height, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+
+cweight <- c(dfcom$weight,dfinc$weight,dfMeanimp$weight,dfRegimp$weight)
+dfweight <- data.frame(weight = cweight, names = dfactive.names)
+ggplot(dfweight, aes(x=weight, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+
+
+```
+
+```{r}
+
+cactive <- c(dfcom$active,
+                       dfinc$active,
+                       dfRegimp$active)
+dfactive.names <- c()
+dfactive.names[0:306] <- 'Complete'
+dfactive.names[307:612] <- 'Listwise'
+dfactive.names[613:918] <- 'Reg Imp'
+
+dfactive <- data.frame(active = cactive, names=dfactive.names)
+ggplot(dfactive, aes(x=active, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cbmi <- c(dfcom$bmi,
+            dfinc$bmi,
+            dfRegimp$bmi)
+
+dfbmi <- data.frame(bmi = cbmi, names = dfactive.names)
+ggplot(dfbmi, aes(x=bmi, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cheight <- c(dfcom$height,
+              dfinc$height,
+              dfRegimp$height)
+dfheight <- data.frame(height = cheight, names = dfactive.names)
+ggplot(dfheight, aes(x=height, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+
+cweight <- c(dfcom$weight,dfinc$weight,dfRegimp$weight)
+dfweight <- data.frame(weight = cweight, names = dfactive.names)
+ggplot(dfweight, aes(x=weight, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+```
 
 ## Including Plots
 
 You can also embed plots, for example:
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
+
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
