@@ -21,6 +21,7 @@ library(dplyr)
 library(ggplot2)
 library(naniar)
 library(tidyr)
+library(caret)
 ```
 
 
@@ -29,6 +30,12 @@ dfcom <- readRDS("complete_data.rds")
 dfinc <- readRDS("incomplete_data_g9.rds")
 dfimp_listwise <- dfinc
 
+set.seed(3456)
+train.index <- createDataPartition(dfinc$smoke, p = .7,
+                                  list = FALSE,
+                                  times = 1)
+train.smoke <- dfinc[train.index,]
+test.smoke <- dfinc[-train.index,]
 ```
 
 ## Data Exploration
@@ -40,9 +47,8 @@ dfcom$hrtdif <- dfcom$active - dfcom$rest
 dfimp_listwise$heartdif <- dfimp_listwise$active - dfimp_listwise$rest
 scintcom <- lm(hrtdif ~ age + smoke + bmi, data = dfcom)
 scintimp_listwise <- lm(heartdif ~ age + smoke + bmi, data = dfimp_listwise, na.action = )
-summary(scintcom)
-summary(scintimp_listwise)
-summary(model, fit.measures = "standard")
+summary(scintcom, fit.measures = "standard")
+summary(scintimp_listwise, fit.measures = "standard")
 pr <- predict(scintcom, test.smoke)
 pr.nonNA <- pr
 pr.nonNA[!is.na(pr.nonNA)] <- 1
@@ -209,6 +215,39 @@ dfweight <- data.frame(weight = cweight, names = dfactive.names)
 ggplot(dfweight, aes(x=weight, fill = names))+
    geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
 
+```
+
+```{r}
+
+df_missing_lowint <- dfinc[dfinc$intensity == "low",]
+df_missing_medint <- dfinc[dfinc$intensity == "moderate",]
+df_missing_hiint <- dfinc[dfinc$intensity == "high",]
+vis_miss(df_missing_lowint)
+md.pattern(df_missing_lowint)
+
+
+
+md.pattern(df_missing_lowint, plot = FALSE)
+
+pc <- md.pairs(dfinc)
+pc
+round(100 * pc$mr/(pc$mr+pc$mm))
+round(100 * pc$rm/(pc$rm+pc$rr))
+
+pl <- md.pairs(df_missing_lowint)
+pl
+round(100 * pl$mr/(pl$mr+pl$mm)) 
+round(100 * pl$rm/(pl$rm+pl$rr))
+
+pm <- md.pairs(df_missing_medint)
+pm
+round(100 * pm$mr/(pm$mr+pm$mm)) 
+round(100 * pm$rm/(pm$rm+pm$rr))
+
+ph <- md.pairs(df_missing_hiint)
+ph
+round(100 * ph$mr/(ph$mr+ph$mm))
+round(100 * ph$rm/(ph$rm+ph$rr))
 ```
 
 ## Including Plots
