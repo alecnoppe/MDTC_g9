@@ -9,11 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Assignment 1 - Group 9
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Imports
 
 ```{r libraries}
 library(mice)
@@ -22,6 +20,7 @@ library(ggplot2)
 library(naniar)
 library(tidyr)
 library(caret)
+library(cowplot)
 ```
 
 
@@ -40,23 +39,80 @@ test.smoke <- dfinc[-train.index,]
 
 ## Data Exploration
 
+```{r}
+summary(dfinc)
+```
+
+```{r}
+hist_age <- ggplot(dfinc, aes(age)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_active <- ggplot(dfinc, aes(active)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_rest <- ggplot(dfinc, aes(rest)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_height <- ggplot(dfinc, aes(height)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_weight <- ggplot(dfinc, aes(weight)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_bmi <- ggplot(dfinc, aes(bmi)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+bar_smoke<-ggplot(data=dfinc, aes(x=smoke)) +
+  geom_bar(color = "#000000", fill = "#0099F8")+
+  theme_classic()
+bar_sex<-ggplot(data=dfinc, aes(x=sex)) +
+  geom_bar(color = "#000000", fill = "#0099F8")+
+  theme_classic()
+bar_int<-ggplot(data=dfinc, aes(x=intensity)) +
+  geom_bar(color = "#000000", fill = "#0099F8")+
+  theme_classic()
+plot_grid(hist_age, hist_active, hist_rest, hist_height, hist_weight, hist_bmi, bar_smoke, bar_sex, bar_int, labels = c('A', 'B', 'C', 'D', 'E', 'F', 'G','H','I'))
+
+
+```
+
 ## Model for regressing heart diff based on age, smoke, and BMI
 ```{r}
 #Scientifically interesting model:
 dfcom$hrtdif <- dfcom$active - dfcom$rest
 dfimp_listwise$heartdif <- dfimp_listwise$active - dfimp_listwise$rest
-scintcom <- lm(hrtdif ~ age + smoke + bmi, data = dfcom)
-scintimp_listwise <- lm(heartdif ~ age + smoke + bmi, data = dfimp_listwise, na.action = )
+
+set.seed(3446)
+train.index <- createDataPartition(dfimp_listwise$intensity, p = .7,
+                                  list = FALSE,
+                                  times = 1)
+train.hrt <- dfimp_listwise[train.index,]
+test.hrt <- dfimp_listwise[-train.index,]
+train.com.hrt <- dfcom[train.index,]
+test.com.hrt <- dfcom[-train.index,]
+
+scintcom <- lm(hrtdif ~ age + smoke + bmi, data = train.com.hrt)
+scintimp_listwise <- lm(heartdif ~ age + smoke + bmi, data = train.hrt, na.action = )
 summary(scintcom, fit.measures = "standard")
 summary(scintimp_listwise, fit.measures = "standard")
-pr <- predict(scintcom, test.smoke)
+pr <- predict(scintimp_listwise, test.smoke)
 pr.nonNA <- pr
 pr.nonNA[!is.na(pr.nonNA)] <- 1
 pr.nonNA[is.na(pr.nonNA)] <- 0
 
-test.nonNA <- test.smoke["smoke"]
-test.nonNA[!is.na(test.nonNA)] <- 1
-test.nonNA[is.na(test.nonNA)] <- 0
+```
+
+## Predictions
+WIP
+```{r}
+pr <- predict(scintimp_listwise, test.hrt)
+
+pr.nonNA <- pr
+pr.nonNA[!is.na(pr.nonNA)] <- 1
+pr.nonNA[is.na(pr.nonNA)] <- 0
+
+pr.com <- predict(scintcom, test.com.hrt)
+
 ```
 ## Ad hoc
 
@@ -97,6 +153,7 @@ summary(modelMean)
 summary(modelReg)
 ```
 
+## Imputations
 ```{r}
 
 dfactive <- data.frame(complete = dfcom$active,
@@ -248,6 +305,20 @@ ph <- md.pairs(df_missing_hiint)
 ph
 round(100 * ph$mr/(ph$mr+ph$mm))
 round(100 * ph$rm/(ph$rm+ph$rr))
+```
+
+### Missing values Logistic Regression
+```{r}
+missingbmi <- glm(is.na(bmi) ~ age + smoke + sex + intensity + active + rest + height, family = "binomial", data = dfinc)
+missingheight <- glm(is.na(height) ~ age + smoke + sex + intensity + active + rest + bmi, family = "binomial", data = dfinc)
+missingactive <- glm(is.na(active) ~ age + smoke + sex + intensity + rest + bmi, family = "binomial", data = dfinc)
+missingsmoke <- glm(is.na(smoke) ~ age + sex + intensity + rest + bmi + height, family = "binomial", data = dfinc)
+
+summary(missingbmi)
+summary(missingheight)
+summary(missingactive)
+summary(missingsmoke)
+
 ```
 
 ## Including Plots
