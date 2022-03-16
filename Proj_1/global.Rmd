@@ -194,6 +194,7 @@ ggplot(gather(dfweight), aes(value)) +
   facet_wrap(~key, scales = 'free_x')
 
 ```
+
 ```{r}
 
 cactive <- c(dfcom$active,
