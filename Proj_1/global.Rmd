@@ -1,0 +1,339 @@
+---
+title: "Global"
+author: "g9"
+date: "3/10/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Assignment 1 - Group 9
+
+## Imports
+
+```{r libraries}
+library(mice)
+library(dplyr)
+library(ggplot2)
+library(naniar)
+library(tidyr)
+library(caret)
+library(cowplot)
+```
+
+
+```{r data}
+dfcom <- readRDS("complete_data.rds")
+dfincold <- readRDS("incomplete_data_g9.rds")
+#Recalculate weight
+dfinc <- dfincold
+dfinc$weight <- round(dfinc$bmi * (dfinc$height / 100)^2, 1) 
+dfimp_listwise <- dfinc
+
+set.seed(3456)
+train.index <- createDataPartition(dfinc$smoke, p = .7,
+                                  list = FALSE,
+                                  times = 1)
+train.smoke <- dfinc[train.index,]
+test.smoke <- dfinc[-train.index,]
+```
+
+## Data Exploration
+
+```{r}
+summary(dfinc)
+```
+
+```{r}
+hist_age <- ggplot(dfinc, aes(age)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_active <- ggplot(dfinc, aes(active)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_rest <- ggplot(dfinc, aes(rest)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_height <- ggplot(dfinc, aes(height)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_weight <- ggplot(dfinc, aes(weight)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+hist_bmi <- ggplot(dfinc, aes(bmi)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_classic()
+bar_smoke<-ggplot(data=dfinc, aes(x=smoke)) +
+  geom_bar(color = "#000000", fill = "#0099F8")+
+  theme_classic()
+bar_sex<-ggplot(data=dfinc, aes(x=sex)) +
+  geom_bar(color = "#000000", fill = "#0099F8")+
+  theme_classic()
+bar_int<-ggplot(data=dfinc, aes(x=intensity)) +
+  geom_bar(color = "#000000", fill = "#0099F8")+
+  theme_classic()
+plot_grid(hist_age, hist_active, hist_rest, hist_height, hist_weight, hist_bmi, bar_smoke, bar_sex, bar_int, labels = c('A', 'B', 'C', 'D', 'E', 'F', 'G','H','I'))
+
+
+```
+
+## Model for regressing heart diff based on age, smoke, and BMI - NOT USED IN REPORT, DELETE?
+```{r}
+#Scientifically interesting model:
+dfcom$hrtdif <- dfcom$active - dfcom$rest
+dfimp_listwise$heartdif <- dfimp_listwise$active - dfimp_listwise$rest
+
+set.seed(3446)
+train.index <- createDataPartition(dfimp_listwise$intensity, p = .7,
+                                  list = FALSE,
+                                  times = 1)
+train.hrt <- dfimp_listwise[train.index,]
+test.hrt <- dfimp_listwise[-train.index,]
+train.com.hrt <- dfcom[train.index,]
+test.com.hrt <- dfcom[-train.index,]
+
+scintcom <- lm(hrtdif ~ age + smoke + bmi, data = train.com.hrt)
+scintimp_listwise <- lm(heartdif ~ age + smoke + bmi, data = train.hrt, na.action = )
+summary(scintcom, fit.measures = "standard")
+summary(scintimp_listwise, fit.measures = "standard")
+pr <- predict(scintimp_listwise, test.smoke)
+pr.nonNA <- pr
+pr.nonNA[!is.na(pr.nonNA)] <- 1
+pr.nonNA[is.na(pr.nonNA)] <- 0
+
+```
+
+## Predictions
+WIP
+```{r}
+pr <- predict(scintimp_listwise, test.hrt)
+
+pr.nonNA <- pr
+pr.nonNA[!is.na(pr.nonNA)] <- 1
+pr.nonNA[is.na(pr.nonNA)] <- 0
+
+pr.com <- predict(scintcom, test.com.hrt)
+
+```
+## Ad hoc
+
+```{r}
+miceoutMean <- mice(dfinc,
+                method = ifelse(colnames(dfinc) == "smoke", "logreg", "mean"),
+                m = 1,
+                maxit = 1)
+dfMeanimp <- complete(miceoutMean)
+
+summary(dfMeanimp)
+summary(dfinc)
+summary(dfcom)
+
+miceoutReg <- mice(dfinc,
+                   method = ifelse(colnames(dfinc) == "smoke", "logreg", "norm.predict"),
+                   m = 1,
+                   maxit = 1)
+dfRegimp <- complete(miceoutReg)
+
+summary(dfRegimp)
+summary(dfMeanimp)
+```
+```{r}
+
+xyplot(miceoutMean, active + bmi + height + weight ~ age + rest)
+xyplot(miceoutReg, active + bmi + height + weight ~ age + rest)
+```
+
+
+Scientifically interesting model
+```{r}
+
+modelCom <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfcom)
+modelList <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfinc)
+modelMean <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfMeanimp)
+modelReg <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfRegimp)
+summary(modelCom)
+summary(modelList)
+summary(modelMean)
+summary(modelReg)
+```
+
+## Imputations
+```{r}
+
+dfactive <- data.frame(complete = dfcom$active,
+                       listwise = dfinc$active,
+                       meanimp = dfMeanimp$active,
+                       regimp = dfRegimp$active)
+
+dfbmi <- data.frame(complete = dfcom$bmi,
+                    listwise = dfinc$bmi,
+                    meanimp = dfMeanimp$bmi,
+                    regimp = dfRegimp$bmi)
+
+dfheight <- data.frame(complete = dfcom$height,
+                      listwise = dfinc$height,
+                      meanimp = dfMeanimp$height,
+                      regimp = dfRegimp$height)
+
+dfweight <- data.frame(complete = dfcom$weight,
+                       listwise = dfinc$weight,
+                       meanimp = dfMeanimp$weight,
+                       regimp = dfRegimp$weight)
+
+
+ggplot(gather(dfactive), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+ggplot(gather(dfbmi), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+ggplot(gather(dfheight), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+ggplot(gather(dfweight), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x')
+
+```
+
+```{r}
+
+cactive <- c(dfcom$active,
+                       dfinc$active,
+                       dfMeanimp$active,
+                       dfRegimp$active)
+dfactive.names <- c()
+dfactive.names[0:306] <- 'Complete'
+dfactive.names[307:612] <- 'Listwise'
+dfactive.names[613:918] <- 'Mean Imputation'
+dfactive.names[919:1224] <- 'Reg Imp'
+
+dfactive <- data.frame(active = cactive, names=dfactive.names)
+ggplot(dfactive, aes(x=active, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cbmi <- c(dfcom$bmi,
+                    dfinc$bmi,
+                    dfMeanimp$bmi,
+                    dfRegimp$bmi)
+
+dfbmi <- data.frame(bmi = cbmi, names = dfactive.names)
+ggplot(dfbmi, aes(x=bmi, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cheight <- c(dfcom$height,
+                      dfinc$height,
+                      dfMeanimp$height,
+                      dfRegimp$height)
+dfheight <- data.frame(height = cheight, names = dfactive.names)
+ggplot(dfheight, aes(x=height, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+
+cweight <- c(dfcom$weight,dfinc$weight,dfMeanimp$weight,dfRegimp$weight)
+dfweight <- data.frame(weight = cweight, names = dfactive.names)
+ggplot(dfweight, aes(x=weight, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+
+
+```
+
+```{r}
+
+cactive <- c(dfcom$active,
+                       dfinc$active,
+                       dfRegimp$active)
+dfactive.names <- c()
+dfactive.names[0:306] <- 'Complete'
+dfactive.names[307:612] <- 'Listwise'
+dfactive.names[613:918] <- 'Reg Imp'
+
+dfactive <- data.frame(active = cactive, names=dfactive.names)
+ggplot(dfactive, aes(x=active, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cbmi <- c(dfcom$bmi,
+            dfinc$bmi,
+            dfRegimp$bmi)
+
+dfbmi <- data.frame(bmi = cbmi, names = dfactive.names)
+ggplot(dfbmi, aes(x=bmi, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cheight <- c(dfcom$height,
+              dfinc$height,
+              dfRegimp$height)
+dfheight <- data.frame(height = cheight, names = dfactive.names)
+ggplot(dfheight, aes(x=height, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+
+cweight <- c(dfcom$weight,dfinc$weight,dfRegimp$weight)
+dfweight <- data.frame(weight = cweight, names = dfactive.names)
+ggplot(dfweight, aes(x=weight, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+```
+
+```{r}
+
+df_missing_lowint <- dfinc[dfinc$intensity == "low",]
+df_missing_medint <- dfinc[dfinc$intensity == "moderate",]
+df_missing_hiint <- dfinc[dfinc$intensity == "high",]
+vis_miss(df_missing_lowint)
+md.pattern(df_missing_lowint)
+
+
+
+md.pattern(df_missing_lowint, plot = FALSE)
+
+pc <- md.pairs(dfinc)
+pc
+round(100 * pc$mr/(pc$mr+pc$mm))
+round(100 * pc$rm/(pc$rm+pc$rr))
+
+pl <- md.pairs(df_missing_lowint)
+pl
+round(100 * pl$mr/(pl$mr+pl$mm)) 
+round(100 * pl$rm/(pl$rm+pl$rr))
+
+pm <- md.pairs(df_missing_medint)
+pm
+round(100 * pm$mr/(pm$mr+pm$mm)) 
+round(100 * pm$rm/(pm$rm+pm$rr))
+
+ph <- md.pairs(df_missing_hiint)
+ph
+round(100 * ph$mr/(ph$mr+ph$mm))
+round(100 * ph$rm/(ph$rm+ph$rr))
+```
+
+### Missing values Logistic Regression
+```{r}
+missingbmi <- glm(is.na(bmi) ~ age + smoke + sex + intensity + active + rest + height, family = "binomial", data = dfinc)
+missingheight <- glm(is.na(height) ~ age + smoke + sex + intensity + active + rest + bmi, family = "binomial", data = dfinc)
+missingactive <- glm(is.na(active) ~ age + smoke + sex + intensity + rest + bmi, family = "binomial", data = dfinc)
+missingsmoke <- glm(is.na(smoke) ~ age + sex + intensity + rest + bmi + height, family = "binomial", data = dfinc)
+
+summary(missingbmi)
+summary(missingheight)
+summary(missingactive)
+summary(missingsmoke)
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
