@@ -1,0 +1,345 @@
+---
+title: "Global2"
+author: "Quintijn de Leng"
+date: "17-3-2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Assignment A - Group 9
+Quintijn de Leng - 6829376
+Alec Noppe - 6947794
+Guglielmo de Santis - 6664652
+Anna Teixeira Rodeia - 6263747
+
+## Imports
+
+```{r libraries}
+library(mice)
+library(dplyr)
+library(ggplot2)
+library(naniar)
+library(tidyr)
+library(caret)
+library(cowplot)
+library(Hmisc)
+library(Metrics)
+```
+
+## Setting up datasets
+```{r}
+dfcom <- readRDS("complete_data.rds")
+dfincold <- readRDS("incomplete_data_g9.rds")
+#Recalculate weight
+dfinc <- dfincold
+dfinc$weight <- round(dfinc$bmi * (dfinc$height / 100)^2, 1) 
+dfimp_listwise <- dfinc
+```
+
+
+
+**Preliminary analyses**
+*Summary statistics*
+```{r}
+summary(dfcom)
+summary(dfinc)
+```
+The complete dataset contains 306 observations of 9 variables. Variables smoke and sex are binary categorical variables (yes/no and male/female) and intensity is a categorical variable. The rest are numerical. 
+For each numerical variable the minimum value, media, mean and maximum value is given. For those variables with missing data, the amount of missing values is also given. 
+
+*Missing Data Patterns*
+```{r}
+vis_miss(dfincold)
+md.pattern(dfincold)
+```
+
+The missing data patterns show that 18.4% of the data are missing. There are 12 missing data patterns with a total of 506 missing values. However, from an inspection of these patterns it can be seen that not all data are actually missing: there are two patterns where both BMI and height are present, but weight is not. After recalculating weight using the formula weight=bmi*(height/100)^2, the total amount of missing values is reduced by 42 and the amount of missing data is reduced to 16.8% of the dataset.
+```{r}
+vis_miss(dfinc)
+md.pattern(dfinc)
+```
+
+*Comparison of complete and incomplete dataset*
+Only the numeric variables with missing values active, height, weight and bmi are considered in all analyses. Smoke is featured in the comparison of means and distributions; all variables are included in the correlations.
+*Means and distributions*
+```{r}
+summary(dfcom[,c(2, 5, 7, 8, 9)])
+summary(dfinc[,c(2, 5, 7, 8, 9)])
+```
+The means of the incomplete data are relatively close to those in the complete dataset. The incomplete data slightly overestimates the mean in the variable active; underestimates the mean in weight, is almost equal in bmi and equal in height. Height features the same bounds for the quantiles. 
+
+*Distributions*
+Graphs?
+
+*Variances*
+```{r}
+round(var(dfcom[,c(5, 7, 8, 9)]), 2)
+round(var(dfinc[,c(5, 7, 8, 9)], use = "complete.obs"), 2)
+```
+
+*Correlations*
+```{r}
+rcorr(as.matrix(dfcom[, c(1, 5:9)]), type = "pearson")
+rcorr(as.matrix(dfinc[, c(1, 5:9)]), type = "pearson")
+```
+In the incomplete data, there is no longer a significant relationship between the weight and age variables and between the rest and height variables. 
+
+*Ad hoc imputations*
+In the following analyses, the complete and incomplete dataset are included for completion and comparison. Only relevant variables shown.
+## Setting up adhoc predictions
+
+```{r}
+miceoutMean <- mice(dfinc,
+                method = ifelse(colnames(dfinc) == "smoke", "logreg", "mean"),
+                m = 1,
+                maxit = 1)
+dfMeanimp <- complete(miceoutMean)
+
+miceoutReg <- mice(dfinc,
+                   method = ifelse(colnames(dfinc) == "smoke", "logreg", "norm.predict"),
+                   m = 1,
+                   maxit = 1)
+dfRegimp <- complete(miceoutReg)
+```
+*Means and distributions*
+```{r}
+summary(dfcom[,c(2, 5, 7, 8, 9)])
+summary(dfinc[,c(2, 5, 7, 8, 9)])
+summary(dfMeanimp[,c(2, 5, 7, 8, 9)])
+summary(dfRegimp[,c(2, 5, 7, 8, 9)])
+```
+In general the means of the imputations are close to the values of the complete dataset. The mean substitution method unsurprisingly has the same means. The regression imputation means come closer to the true value than the listwise deletion means, with the exception of height.
+
+*Variances*
+```{r}
+round(var(dfcom[,c(5, 7, 8, 9)]), 2)
+round(var(dfinc[,c(5, 7, 8, 9)], use = "complete.obs"), 2)
+round(var(dfMeanimp[,c(5, 7, 8, 9)]), 2)
+round(var(dfRegimp[,c(5, 7, 8, 9)]), 2)
+```
+WRITEUP NEEDED
+
+*Correlations*
+```{r}
+rcorr(as.matrix(dfcom[, c(1, 5:9)]), type = "pearson")
+rcorr(as.matrix(dfinc[, c(1, 5:9)]), type = "pearson")
+rcorr(as.matrix(dfMeanimp[, c(1, 5:9)]), type = "pearson")
+rcorr(as.matrix(dfRegimp[, c(1, 5:9)]), type = "pearson")
+```
+WRITEUP NEEDED
+
+*Ad hoc methods: imputation distributions*
+```{r}
+xyplot(miceoutMean, active + bmi + height + weight ~ age + rest)
+xyplot(miceoutReg, active + bmi + height + weight ~ age + rest)
+```
+These value distributions show that, unsurprisingly, the regression imputations come to a more realistic outcome than the mean substitutions, especially in variables where a clear linear pattern is visible like between active heart rate and age. It does impute some improbable values (read: idealized probable values from the regression line), far from any observed values.
+
+```{r}
+
+cactive <- c(dfcom$active,
+                       dfinc$active,
+                       dfMeanimp$active,
+                       dfRegimp$active)
+dfactive.names <- c()
+dfactive.names[0:306] <- 'Complete'
+dfactive.names[307:612] <- 'Listwise'
+dfactive.names[613:918] <- 'Mean Imputation'
+dfactive.names[919:1224] <- 'Reg Imp'
+
+dfactive <- data.frame(active = cactive, names=dfactive.names)
+ggplot(dfactive, aes(x=active, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cbmi <- c(dfcom$bmi,
+                    dfinc$bmi,
+                    dfMeanimp$bmi,
+                    dfRegimp$bmi)
+
+dfbmi <- data.frame(bmi = cbmi, names = dfactive.names)
+ggplot(dfbmi, aes(x=bmi, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cheight <- c(dfcom$height,
+                      dfinc$height,
+                      dfMeanimp$height,
+                      dfRegimp$height)
+dfheight <- data.frame(height = cheight, names = dfactive.names)
+ggplot(dfheight, aes(x=height, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+
+cweight <- c(dfcom$weight,dfinc$weight,dfMeanimp$weight,dfRegimp$weight)
+dfweight <- data.frame(weight = cweight, names = dfactive.names)
+ggplot(dfweight, aes(x=weight, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+```
+From these histograms, the only thing that can be seen is the ludicrousness of the idea of mean substitution. 
+
+```{r}
+
+cactive <- c(dfcom$active,
+                       dfinc$active,
+                       dfRegimp$active)
+dfactive.names <- c()
+dfactive.names[0:306] <- 'Complete'
+dfactive.names[307:612] <- 'Listwise'
+dfactive.names[613:918] <- 'Reg Imp'
+
+dfactive <- data.frame(active = cactive, names=dfactive.names)
+ggplot(dfactive, aes(x=active, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cbmi <- c(dfcom$bmi,
+            dfinc$bmi,
+            dfRegimp$bmi)
+
+dfbmi <- data.frame(bmi = cbmi, names = dfactive.names)
+ggplot(dfbmi, aes(x=bmi, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+cheight <- c(dfcom$height,
+              dfinc$height,
+              dfRegimp$height)
+dfheight <- data.frame(height = cheight, names = dfactive.names)
+ggplot(dfheight, aes(x=height, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+
+cweight <- c(dfcom$weight,dfinc$weight,dfRegimp$weight)
+dfweight <- data.frame(weight = cweight, names = dfactive.names)
+ggplot(dfweight, aes(x=weight, fill = names))+
+   geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
+
+```
+
+
+From these histograms, mean substitution was omitted as the effect is clear and it skews the rest of the graph. It can be seen that the regression imputation creates a sort of ‘idealized version’ of the distribution of the values compared to the complete dataset.
+
+# Scientifically interesting model
+
+```{r}
+set.seed(3456)
+train.index <- createDataPartition(dfcom$sex, p = .8,
+                                  list = FALSE,
+                                  times = 1)
+train.com <- dfcom[train.index,]
+test.com <- dfcom[-train.index,]
+
+ 
+
+train.index <- createDataPartition(dfinc$sex, p = .8,
+                                  list = FALSE,
+                                  times = 1)
+train.list <- dfinc[train.index,]
+test.list <- dfinc[-train.index,]
+
+ 
+
+train.index <- createDataPartition(dfMeanimp$sex, p = .8,
+                                  list = FALSE,
+                                  times = 1)
+train.mean <- dfMeanimp[train.index,]
+test.mean <- dfMeanimp[-train.index,]
+
+ 
+
+train.index <- createDataPartition(dfRegimp$sex, p = .8,
+                                  list = FALSE,
+                                  times = 1)
+train.reg <- dfRegimp[train.index,]
+test.reg <- dfRegimp[-train.index,]
+
+ 
+
+modelCom <- lm(active ~ rest + bmi + sex + smoke + intensity, data = train.com)
+modelList <- lm(active ~ rest + bmi + sex + smoke + intensity, data = train.list)
+modelMean <- lm(active ~ rest + bmi + sex + smoke + intensity, data = train.mean)
+modelReg <- lm(active ~ rest + bmi + sex + smoke + intensity, data = train.reg)
+summary(modelCom)
+summary(modelList)
+summary(modelMean)
+summary(modelReg)
+pred.com <- predict(modelCom, test.com)
+pred.list <- predict(modelList, test.list)
+pred.mean <- predict(modelMean, test.mean)
+pred.reg <- predict(modelReg, test.reg)
+
+ 
+
+pred.list
+
+ 
+
+test.com.active<- test.com$active
+pred.com.error <- test.com.active - pred.com
+pred.com.R2=1-sum(pred.com.error^2)/sum((test.com.active- mean(test.com.active))^2)
+eval.com <- c(sse(test.com$active, pred.com), rmse(test.com$active, pred.com), rmse(test.com$active, pred.com), pred.com.R2)
+
+ 
+
+test.mean.active<- test.mean$active
+pred.mean.error <- test.mean.active - pred.mean
+pred.mean.R2=1-sum(pred.mean.error^2)/sum((test.mean.active- mean(test.mean.active))^2)
+eval.mean <- c(sse(test.mean$active, pred.mean), rse(test.mean$active, pred.mean), rmse(test.mean$active, pred.mean), pred.mean.R2)
+
+ 
+
+test.reg.active<- test.reg$active
+pred.reg.error <- test.reg.active - pred.reg
+pred.reg.R2=1-sum(pred.reg.error^2)/sum((test.reg.active- mean(test.reg.active))^2)
+eval.reg <- c(sse(test.reg$active, pred.reg), rse(test.reg$active, pred.reg), rmse(test.reg$active, pred.reg), pred.reg.R2)
+
+ 
+
+metric.names <- c("SSE", "RMSE", "RSE", "R2")
+evaluation <- as.data.frame(t(eval.com))
+colnames(evaluation) <- metric.names
+supplemental <- as.data.frame(t(eval.mean))
+colnames(supplemental) <- metric.names
+evaluation <- rbind(evaluation, supplemental)
+supplemental <- as.data.frame(t(eval.reg))
+colnames(supplemental) <- metric.names
+evaluation <- rbind(evaluation, supplemental)
+rownames(evaluation) <- c("Complete Model", "Mean Imputed Model", "Reg Imputed Model")
+evaluation
+```
+
+
+# Exploring the missing data mechanism
+```{r}
+mcar_test(dfinc)
+```
+
+A Little’s test of Missing Completely at Random was not significant: χ^2 (66)=67.3, p = .43; leading to the consideration of an MCAR missing data pattern. However, probability testing for MCAR has significant weaknesses. While it solves the problem with multiple testing and p-value inflation, it may not have the power to show a significant result due to the small size of this dataset.
+
+## Investigating the missingness
+
+There are monotone patterns in the missing data. Looking back at the patterns, four instances can be established:
+- If *smoke* is missing, *active* and *weight* are also missing with one exception due to the recalculation of *weight*.
+- If *BMI* is missing, then *weight* is also missing.
+- If *active* is missing, then *weight* is also missing with one exception due to the recalculation of *weight*
+- If *height* is missing, then *weight* is also missing.
+
+```{r}
+pc <- md.pairs(dfinc)
+pc$mm
+```
+These can be recognized when looking into the *mm* category of missing data pairs. 
+
+When looking ahead at multiple imputation, the proportion of usable cases can be calculated by the number of pairs with Yj missing and Yk observed divided by the total number of missing cases in Yj. 
+
+
+It concludes that smoke and active are the most relevant predictors.
+
+
+LOOK INTO WHY? MORE ANALYSIS?
+
+
+
+
+
