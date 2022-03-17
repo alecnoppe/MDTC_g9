@@ -10,14 +10,15 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Assignment A - Group 9
-Quintijn de Leng - 6829376
-Alec Noppe - 6947794
-Guglielmo de Santis - 6664652
-Anna Teixeira Rodeia - 6263747
+
+- Quintijn de Leng - 6829376
+- Alec Noppe - 6947794
+- Guglielmo de Santis - 6664652
+- Anna Teixeira Rodeia - 626374x
 
 ## Imports
 
-```{r libraries}
+```{r libraries, message = FALSE}
 library(mice)
 library(dplyr)
 library(ggplot2)
@@ -30,7 +31,7 @@ library(Metrics)
 ```
 
 ## Setting up datasets
-```{r}
+```{r datasets}
 dfcom <- readRDS("complete_data.rds")
 dfincold <- readRDS("incomplete_data_g9.rds")
 #Recalculate weight
@@ -41,71 +42,92 @@ dfimp_listwise <- dfinc
 
 
 
-**Preliminary analyses**
-*Summary statistics*
-```{r}
+# Preliminary analyses
+
+## Summary statistics*
+
+```{r summary}
 summary(dfcom)
 summary(dfinc)
 ```
 The complete dataset contains 306 observations of 9 variables. Variables smoke and sex are binary categorical variables (yes/no and male/female) and intensity is a categorical variable. The rest are numerical. 
 For each numerical variable the minimum value, media, mean and maximum value is given. For those variables with missing data, the amount of missing values is also given. 
 
-*Missing Data Patterns*
-```{r}
+# Missing Data Patterns*
+
+```{r missing data patterns}
 vis_miss(dfincold)
 md.pattern(dfincold)
 ```
 
 The missing data patterns show that 18.4% of the data are missing. There are 12 missing data patterns with a total of 506 missing values. However, from an inspection of these patterns it can be seen that not all data are actually missing: there are two patterns where both BMI and height are present, but weight is not. After recalculating weight using the formula weight=bmi*(height/100)^2, the total amount of missing values is reduced by 42 and the amount of missing data is reduced to 16.8% of the dataset.
-```{r}
+
+```{r missing data patterns 2}
 vis_miss(dfinc)
 md.pattern(dfinc)
 ```
 
-*Comparison of complete and incomplete dataset*
+# Comparison of complete and incomplete dataset
+
 Only the numeric variables with missing values active, height, weight and bmi are considered in all analyses. Smoke is featured in the comparison of means and distributions; all variables are included in the correlations.
-*Means and distributions*
-```{r}
+
+## Means and distributions
+```{r complete_incomplete means}
 summary(dfcom[,c(2, 5, 7, 8, 9)])
 summary(dfinc[,c(2, 5, 7, 8, 9)])
 ```
 The means of the incomplete data are relatively close to those in the complete dataset. The incomplete data slightly overestimates the mean in the variable active; underestimates the mean in weight, is almost equal in bmi and equal in height. Height features the same bounds for the quantiles. 
 
-*Distributions*
+##Distributions
+
 Graphs?
 
-*Variances*
-```{r}
+## Variances
+
+```{r complete_incomplete var}
 round(var(dfcom[,c(5, 7, 8, 9)]), 2)
 round(var(dfinc[,c(5, 7, 8, 9)], use = "complete.obs"), 2)
 ```
 
-*Correlations*
-```{r}
+## Correlations
+
+```{r complete_incomplete cor}
 rcorr(as.matrix(dfcom[, c(1, 5:9)]), type = "pearson")
 rcorr(as.matrix(dfinc[, c(1, 5:9)]), type = "pearson")
 ```
 In the incomplete data, there is no longer a significant relationship between the weight and age variables and between the rest and height variables. 
 
-*Ad hoc imputations*
+# Ad hoc imputations
+
 In the following analyses, the complete and incomplete dataset are included for completion and comparison. Only relevant variables shown.
+
 ## Setting up adhoc predictions
 
-```{r}
+```{r adhoc setup}
+
+init <- mice(dfinc, maxit = 0)
+methMean <- init$method
+methMean[c("active", "height", "weight", "bmi")] <- "mean"
+methReg <- init$method
+methReg[c("active", "height", "weight", "bmi")] <- "norm.predict"
+
+
 miceoutMean <- mice(dfinc,
-                method = ifelse(colnames(dfinc) == "smoke", "logreg", "mean"),
+                method = methMean,
                 m = 1,
                 maxit = 1)
 dfMeanimp <- complete(miceoutMean)
 
 miceoutReg <- mice(dfinc,
-                   method = ifelse(colnames(dfinc) == "smoke", "logreg", "norm.predict"),
+                   method = methReg,
                    m = 1,
                    maxit = 1)
 dfRegimp <- complete(miceoutReg)
 ```
-*Means and distributions*
-```{r}
+
+## Means and distributions
+
+```{r adhoc summary}
 summary(dfcom[,c(2, 5, 7, 8, 9)])
 summary(dfinc[,c(2, 5, 7, 8, 9)])
 summary(dfMeanimp[,c(2, 5, 7, 8, 9)])
@@ -113,32 +135,38 @@ summary(dfRegimp[,c(2, 5, 7, 8, 9)])
 ```
 In general the means of the imputations are close to the values of the complete dataset. The mean substitution method unsurprisingly has the same means. The regression imputation means come closer to the true value than the listwise deletion means, with the exception of height.
 
-*Variances*
-```{r}
+## Variances
+
+```{r adhoc var}
 round(var(dfcom[,c(5, 7, 8, 9)]), 2)
 round(var(dfinc[,c(5, 7, 8, 9)], use = "complete.obs"), 2)
 round(var(dfMeanimp[,c(5, 7, 8, 9)]), 2)
 round(var(dfRegimp[,c(5, 7, 8, 9)]), 2)
 ```
-WRITEUP NEEDED
 
-*Correlations*
-```{r}
+The mean imputations severely underestimate the variances of all the variables due to the massive influx of values equal to the mean. The listwise deletion method seems to be the closest match to the complete dataset which may indicate that this is mostly due to sampling variance.
+
+##Correlations
+
+```{r adhoc cor}
 rcorr(as.matrix(dfcom[, c(1, 5:9)]), type = "pearson")
 rcorr(as.matrix(dfinc[, c(1, 5:9)]), type = "pearson")
 rcorr(as.matrix(dfMeanimp[, c(1, 5:9)]), type = "pearson")
 rcorr(as.matrix(dfRegimp[, c(1, 5:9)]), type = "pearson")
 ```
-WRITEUP NEEDED
 
-*Ad hoc methods: imputation distributions*
-```{r}
+The significances no longer found in the incomplete dataset are also not found in the ad hoc-imputations. The ad-hoc imputations tend do underestimate the correlations between the variables.
+
+##Ad hoc methods: imputation distributions
+
+```{r xyplots}
 xyplot(miceoutMean, active + bmi + height + weight ~ age + rest)
 xyplot(miceoutReg, active + bmi + height + weight ~ age + rest)
 ```
+
 These value distributions show that, unsurprisingly, the regression imputations come to a more realistic outcome than the mean substitutions, especially in variables where a clear linear pattern is visible like between active heart rate and age. It does impute some improbable values (read: idealized probable values from the regression line), far from any observed values.
 
-```{r}
+```{r adhoc_hist_withmean, warning = FALSE, message = FALSE}
 
 cactive <- c(dfcom$active,
                        dfinc$active,
@@ -178,9 +206,10 @@ ggplot(dfweight, aes(x=weight, fill = names))+
    geom_histogram( color='#e9ecef', alpha=0.6, position='identity')
 
 ```
+
 From these histograms, the only thing that can be seen is the ludicrousness of the idea of mean substitution. 
 
-```{r}
+```{r adhoc_hist_nomean, warning = FALSE, message = FALSE}
 
 cactive <- c(dfcom$active,
                        dfinc$active,
@@ -271,7 +300,7 @@ pred.reg <- predict(modelReg, test.reg)
 
  
 
-pred.list
+#pred.list
 
  
 
@@ -309,8 +338,12 @@ rownames(evaluation) <- c("Complete Model", "Mean Imputed Model", "Reg Imputed M
 evaluation
 ```
 
+All models are significant. In the complete dataset, resting heart rate, bmi and sex are significant predictors for active heart rate. Only resting heart rate remains significant under listwise deletion, while intensity (moderate) becomes significant under mean imputation.
+
+It can be noted that the regression and mean imputed models suffer from an extremely low RMSE: an improbably high model fit due to the method of imputation. The R^2 statistic is overinflated in the regression imputation. Using this imputation would be extremely dangerous and lead to wrong conclusions.
 
 # Exploring the missing data mechanism
+
 ```{r}
 mcar_test(dfinc)
 ```
@@ -329,6 +362,7 @@ There are monotone patterns in the missing data. Looking back at the patterns, f
 pc <- md.pairs(dfinc)
 pc$mm
 ```
+
 These can be recognized when looking into the *mm* category of missing data pairs. 
 
 When looking ahead at multiple imputation, the proportion of usable cases can be calculated by the number of pairs with Yj missing and Yk observed divided by the total number of missing cases in Yj. 
