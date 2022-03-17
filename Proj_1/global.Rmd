@@ -26,7 +26,10 @@ library(cowplot)
 
 ```{r data}
 dfcom <- readRDS("complete_data.rds")
-dfinc <- readRDS("incomplete_data_g9.rds")
+dfincold <- readRDS("incomplete_data_g9.rds")
+#Recalculate weight
+dfinc <- dfincold
+dfinc$weight <- round(dfinc$bmi * (dfinc$height / 100)^2, 1) 
 dfimp_listwise <- dfinc
 
 set.seed(3456)
@@ -76,7 +79,7 @@ plot_grid(hist_age, hist_active, hist_rest, hist_height, hist_weight, hist_bmi, 
 
 ```
 
-## Model for regressing heart diff based on age, smoke, and BMI
+## Model for regressing heart diff based on age, smoke, and BMI - NOT USED IN REPORT, DELETE?
 ```{r}
 #Scientifically interesting model:
 dfcom$hrtdif <- dfcom$active - dfcom$rest
@@ -141,6 +144,9 @@ summary(dfMeanimp)
 xyplot(miceoutMean, active + bmi + height + weight ~ age + rest)
 xyplot(miceoutReg, active + bmi + height + weight ~ age + rest)
 ```
+
+
+Scientifically interesting model
 ```{r}
 
 modelCom <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfcom)
