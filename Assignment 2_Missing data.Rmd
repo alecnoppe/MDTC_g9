@@ -1,0 +1,73 @@
+---
+title: "Assignment 2"
+output: html_document
+date: '2022-03-17'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+install.packages(c("rmarkdown", "knitr", "dplyr", "mice", "magritter", "ggplot2"), dependencies = TRUE)
+library(mice)
+library(ggplot2)
+library(dplyr)
+```
+
+
+```{r}
+View(incomplete_data_g9)
+View(complete_data)
+```
+
+single imputation
+```{r pressure, echo=FALSE}
+ini <- mice(incomplete_data_g9, maxit = 0)
+(pred <- ini$predictorMatrix)
+(meth <- ini$method)
+meth["smoke"] <- "logreg"
+meth
+imp1 <- mice(incomplete_data_g9, method = meth, m = 1, seed = 235711)
+plot(imp1)
+densityplot(imp1)
+stripplot(imp1)
+(comp1 <- complete(imp1))
+```
+
+multiple imputation, for 5 and 10 imputations
+```{r}
+imp5 <- mice(incomplete_data_g9, m = 5, method = meth, seed = 235711, print = FALSE)
+plot(imp5)
+densityplot(imp5)
+imp10 <- mice(incomplete_data_g9, m = 10, method = meth, seed = 235711, print = FALSE)
+plot(imp10)
+densityplot(imp10)
+```
+
+```{r}
+list <- complete(imp5, "all")
+list
+```
+
+Search for the best method to use.
+```{r}
+mice(incomplete_data_g9, maxit = 0)$method
+?mice.impute.lasso.select.logreg
+```
+
+MI estimated means and the observed data means for all numeric variables in the incomplete dataset.
+```{r}
+complete(imp5, "all") %>% 
+  lapply(function(x) select(x, where(is.numeric)) %>% colMeans()) %>%
+  do.call(rbind, .) %>%
+  colMeans()
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
