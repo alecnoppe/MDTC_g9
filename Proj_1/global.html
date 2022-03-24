@@ -358,6 +358,7 @@ pre code {
 <p>When you click the <strong>Knit</strong> button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:</p>
 <pre class="r"><code>dfinc &lt;- readRDS(&quot;~/GitHub/MDTC_g9/Proj_1/incomplete_data_g9.rds&quot;)
 dfcom &lt;- readRDS(&quot;~/GitHub/MDTC_g9/Proj_1/complete_data.rds&quot;)
+dfisNA &lt;- is.na(dfinc)
 summary(dfinc)</code></pre>
 <pre><code>##       age         smoke         sex         intensity       active      
 ##  Min.   :18.00   no  :180   male  :168   high    : 69   Min.   : 50.00  
@@ -377,13 +378,35 @@ summary(dfinc)</code></pre>
 ##                   NA&#39;s   :95    NA&#39;s   :173      NA&#39;s   :82</code></pre>
 <pre class="r"><code>ini &lt;- mice(dfinc, maxit = 0)
 meth &lt;- ini$method
-meth[&quot;bmi&quot;] &lt;- &quot;~ I(weight / (height * 100)^2)&quot;</code></pre>
+meth[&quot;bmi&quot;] &lt;- &quot;~ I(weight / (height / 100)^2)&quot;</code></pre>
 <pre class="r"><code>imp1 &lt;- mice(dfinc,
              m = 5,
              maxit = 20,
              method = meth,
              seed = 12345,
-             print = FALSE)</code></pre>
+             print = FALSE)
+imp1</code></pre>
+<pre><code>## Class: mids
+## Number of multiple imputations:  5 
+## Imputation methods:
+##                              age                            smoke 
+##                               &quot;&quot;                         &quot;logreg&quot; 
+##                              sex                        intensity 
+##                               &quot;&quot;                               &quot;&quot; 
+##                           active                             rest 
+##                            &quot;pmm&quot;                               &quot;&quot; 
+##                           height                           weight 
+##                            &quot;pmm&quot;                            &quot;pmm&quot; 
+##                              bmi 
+## &quot;~ I(weight / (height / 100)^2)&quot; 
+## PredictorMatrix:
+##           age smoke sex intensity active rest height weight bmi
+## age         0     1   1         1      1    1      1      1   1
+## smoke       1     0   1         1      1    1      1      1   1
+## sex         1     1   0         1      1    1      1      1   1
+## intensity   1     1   1         0      1    1      1      1   1
+## active      1     1   1         1      0    1      1      1   1
+## rest        1     1   1         1      1    0      1      1   1</code></pre>
 </div>
 <div id="evaluation" class="section level2">
 <h2>Evaluation</h2>
