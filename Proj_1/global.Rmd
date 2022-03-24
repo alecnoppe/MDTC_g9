@@ -1,0 +1,53 @@
+---
+title: "global"
+author: "g9"
+date: "3/24/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(mice)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+dfinc <- readRDS("~/GitHub/MDTC_g9/Proj_1/incomplete_data_g9.rds")
+dfcom <- readRDS("~/GitHub/MDTC_g9/Proj_1/complete_data.rds")
+dfisNA <- dfinc
+summary(dfinc)
+```
+```{r}
+ini <- mice(dfinc, maxit = 0)
+meth <- ini$method
+meth["bmi"] <- "~ I(weight / (height * 100)^2)"
+```
+
+
+```{r}
+imp1 <- mice(dfinc,
+             m = 5,
+             maxit = 20,
+             method = meth,
+             seed = 12345,
+             print = FALSE)
+```
+
+## Evaluation
+```{r}
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
