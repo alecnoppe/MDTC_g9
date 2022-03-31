@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 library(mice)
+library(Metrics)
 ```
 
 ## R Markdown
@@ -18,7 +19,7 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r}
 dfinc <- readRDS("~/GitHub/MDTC_g9/Proj_1/incomplete_data_g9.rds")
 dfcom <- readRDS("~/GitHub/MDTC_g9/Proj_1/complete_data.rds")
-dfisNA <- is.na(dfinc)
+dfisNA <- data.frame(is.na(dfinc))
 summary(dfinc)
 ```
 
@@ -56,28 +57,34 @@ summary(pool(modelFit))
 ```{r}
 diff <- data.frame(age = integer())
 
-mAge <- dfcomI$age[dfisNA[0] == TRUE]
-tAge <- dfcom$age[dfisNA[0] == TRUE]
-mSmoke <- dfcomI$smoke[dfisNA[1] == TRUE]
-tSmoke <- dfcom$smoke[dfisNA[1] == TRUE]
-mSex <- dfcomI$sex[dfisNA[2] == TRUE]
-tSex <- dfcom$sex[dfisNA[2] == TRUE]
-mIntensity <- dfcomI$intensity[dfisNA[3] == TRUE]
-tIntensity <- dfcom$intensity[dfisNA[3] == TRUE]
-mActivity <- dfcomI$activity[dfisNA[4] == TRUE]
-tActivity <- dfcom$activity[dfisNA[4] == TRUE]
-mRest <- dfcomI$rest[dfisNA[5] == TRUE]
-tRest <- dfcom$rest[dfisNA[5] == TRUE]
-mHeight <- dfcomI$height[dfisNA[6] == TRUE]
-tHeight <- dfcom$height[dfisNA[6] == TRUE]
-mWeight <- dfcomI$weight[dfisNA[7] == TRUE]
-tWeight <- dfcom$weight[dfisNA[7] == TRUE]
-mBmi <- dfcomI$bmi[dfisNA[8] == TRUE]
-tBmi <- dfcom$bmi[dfisNA[8] == TRUE]
+mAge <- dfcomI$age[dfisNA$age == TRUE]
+tAge <- dfcom$age[dfisNA$age == TRUE]
+mSmoke <- dfcomI$smoke[dfisNA$smoke == TRUE]
+tSmoke <- dfcom$smoke[dfisNA$smoke == TRUE]
+mSex <- dfcomI$sex[dfisNA$sex == TRUE]
+tSex <- dfcom$sex[dfisNA$sex == TRUE]
+mIntensity <- dfcomI$intensity[dfisNA$intensity == TRUE]
+tIntensity <- dfcom$intensity[dfisNA$intensity == TRUE]
+mActivity <- dfcomI$active[dfisNA$active == TRUE]
+tActivity <- dfcom$active[dfisNA$active == TRUE]
+mRest <- dfcomI$rest[dfisNA$rest == TRUE]
+tRest <- dfcom$rest[dfisNA$rest == TRUE]
+mHeight <- dfcomI$height[dfisNA$height == TRUE]
+tHeight <- dfcom$height[dfisNA$height == TRUE]
+mWeight <- dfcomI$weight[dfisNA$weight == TRUE]
+tWeight <- dfcom$weight[dfisNA$weight == TRUE]
+mBmi <- dfcomI$bmi[dfisNA$bmi == TRUE]
+tBmi <- dfcom$bmi[dfisNA$bmi == TRUE]
 ```
 
 ```{r}
+test.com.active<- tActivity
+pred.com.error <- tActivity - mActivity
+pred.com.R2=1-sum(pred.com.error^2)/sum((test.com.active- mean(test.com.active))^2)
+eval.com <- c(sse(tActivity, mActivity), rse(tActivity, mActivity), rmse(tActivity, mActivity), pred.com.R2)
 
+eval.com
+ 
 ```
 
 ## Including Plots

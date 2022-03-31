@@ -1,0 +1,114 @@
+---
+title: "eval_B"
+author: "g9"
+date: "3/31/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, message=FALSE, warning=FALSE}
+library(mice)
+library(dplyr)
+library(ggplot2)
+library(naniar)
+library(tidyr)
+library(caret)
+library(cowplot)
+library(Hmisc)
+library(Metrics)
+library(miceadds)
+```
+
+```{r}
+dfcom <- readRDS("complete_data.rds")
+dfinc <- readRDS("incomplete_data_g9.rds")
+```
+
+## Setting up the dataset for imputation
+
+```{r}
+#Better way to calculate the missing weights!
+prep_ini <- mice(dfinc, maxit = 0)
+prep_ini_meth <- prep_ini$method
+prep_ini_meth[c("smoke", "active", "height", "bmi")] <- ""
+prep_ini_meth["weight"] <- "~ I(bmi * (height / 100)^2)"
+imp_prep <- mice(dfinc,
+                m = 1,
+                maxit = 1,
+                method = prep_ini_meth,
+                print = FALSE)
+dfinc <- complete(imp_prep)
+```
+
+As in the last assignment, we re-calculate some missing cases of *weight* to reflect the actual non-missingness of these cases. This time, we avoid recalculating all cases of *weight*.
+
+##Setting up the imputation model
+
+```{r}
+ini <- mice(dfinc, maxit = 0)
+meth <- ini$method
+meth["bmi"] <- "~ I(weight / (height / 100)^2)"
+pred <- ini$predictorMatrix
+pred[c("weight", "height"), "bmi"] <- 0
+
+imp1 <- mice(dfinc,
+             m = 5,
+             maxit = 5,
+             method = meth,
+             predictorMatrix = pred,
+             seed = 1337,
+             print = FALSE)
+
+```
+
+
+
+```{r}
+plot(imp1)
+densityplot(imp1)
+stripplot(imp1)
+```
+
+```{r}
+xyplot(imp1, 
+       bmi ~ I(weight / (height / 100)^2), 
+       ylab="Imputed BMI", 
+       xlab="Calculated BMI")
+```
+```{r}
+xyplot(imp1, 
+       weight ~ I(bmi * (height / 100)^2), 
+       ylab="Imputed weight", 
+       xlab="Calculated weight")
+```
+
+```{r}
+modelcomp <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfcom)
+#dfimp1 <- complete(imp1)  ##BAD WORKFLOW, DO NOT DO THIS see MIMD 5.1
+#modelimp1 <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfimp1)
+fit1 <- with(imp1, lm(active ~ age + rest + bmi + sex + smoke + intensity +bmi*age)) %>% 
+        pool()
+                  
+summary(modelcomp)
+summary(fit1)
+```
+# est <- with(imp, lm(sws ~ log(bw) + odi)) %>% pool()
+summary(est)
+
+
+# Evaluation
+
+```{r}
+miceadds::mi.anova(imp1, "active ~ age + rest + bmi + sex + smoke + intensity + bmi*age", type=2)
+summary(aov(active ~ rest + bmi + sex + intensity + bmi*age, dfcom))
+```
+```{r}
+
+```
+
+#TODO:
+#kijken naar alternatieven predictive mean matching
+#kijken naar predictor matrix en collineariteit
