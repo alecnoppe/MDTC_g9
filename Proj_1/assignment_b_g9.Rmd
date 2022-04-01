@@ -1,15 +1,19 @@
 ---
-title: "Global_a2"
-author: "Quintijn de Leng"
-date: "24-3-2022"
+title: "MDCE Assignment B, Group 9"
+author: 
+        - Quintijn de Leng - 6829376
+        - Alec Noppe - 6947794
+        - Guglielmo de Santis - 6664652
+        - Anna Teixeira Rodeia - 6263747
+date: "1-4-2022"
 output: pdf_document
 ---
-
+\newpage
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r libraries, message=FALSE, warning=FALSE}
+```{r libraries, message=FALSE, warning=FALSE, echo = FALSE}
 library(mice)
 library(dplyr)
 library(ggplot2)
@@ -22,15 +26,14 @@ library(Metrics)
 library(miceadds)
 ```
 
-```{r}
+```{r, echo = FALSE}
 dfcom <- readRDS("complete_data.rds")
 dfinc <- readRDS("incomplete_data_g9.rds")
 ```
 
-## Setting up the dataset for imputation
+# Preparing the dataset for imputation
 
 ```{r}
-#Better way to calculate the missing weights!
 prep_ini <- mice(dfinc, maxit = 0)
 prep_ini_meth <- prep_ini$method
 prep_ini_meth[c("smoke", "active", "height", "bmi")] <- ""
@@ -45,7 +48,7 @@ dfinc <- complete(imp_prep)
 
 As in the last assignment, we re-calculate some missing cases of *weight* to reflect the actual non-missingness of these cases. This time, we avoid recalculating all cases of *weight*.
 
-##Setting up the imputation model
+# Imputation
 
 ```{r}
 ini <- mice(dfinc, maxit = 0)
@@ -55,8 +58,8 @@ pred <- ini$predictorMatrix
 pred[c("weight", "height"), "bmi"] <- 0
 
 imp1 <- mice(dfinc,
-             m = 5,
-             maxit = 10,
+             m = 17,
+             maxit = 20,
              method = meth,
              predictorMatrix = pred,
              seed = 1337,
@@ -64,76 +67,155 @@ imp1 <- mice(dfinc,
 
 ```
 
+To impute the missing data, we used the mice algorithm. For the amount of imputations we followed the guideline to set this amount equal to the percentage of missing values (16.8%), rounded up to 17. 
 
+- For the binary variable *smoke*, logistic regression imputation was used. 
+- For the numeric variables *active*, *height* and *weight*, predictive mean matching (pmm) was used. 
+- *BMI* was imputed by passive imputation to preserve the relationsip between *height* and *weight*. To prevent any problems with circularity in the imputations, *bmi* is not used as a predictor for the imputations of *height* or *weight*. 
 
-```{r}
+Using five iterations, we did not yet see a convergence in some variables. This may be because of the relatively high correlation between some variables, most notably (and obviously) *weight* and *height*. After 10 iterations, all variables showed convergence (see below).
+
+## Diagnostics
+
+```{r, echo = FALSE}
 plot(imp1)
+```
+
+Density plot of imputed data:
+
+```{r, echo = FALSE}
 densityplot(imp1)
+```
+
+Stripplot of imputed data:
+
+```{r, echo = FALSE}
 stripplot(imp1)
 ```
 
-Using five iterations, we did not yet see a convergence in some variables. After 10 iterations, all variables showed convergence.
+These plots look good and show convergence. The stripplots show realistic values for the imputed data. *bmi* is the only variable that does not exactly match observed values due to the nature of passive imputation. 
 
-```{r}
-xyplot(imp1, 
-       bmi ~ I(weight / (height / 100)^2), 
-       ylab="Imputed BMI", 
-       xlab="Calculated BMI")
-```
-```{r}
-xyplot(imp1, 
-       weight ~ I(bmi * (height / 100)^2), 
-       ylab="Imputed weight", 
-       xlab="Calculated weight")
-```
+# Comparison of imputed and complete data
 
-##Comparison of imputed and complete data
+## Means
+
+In this section, means of the imputed, complete and incomplete dataset are compared. Only imputed numeric variables shown.
 
 ```{r}
 impmeans <- complete(imp1, "all") %>% 
             lapply(function(x) select(x, where(is.numeric)) %>% colMeans()) %>%
             do.call(rbind, .) %>%
             colMeans()
-#From: Lang (2022, 3 december)
+#From: Lang (2022, 3 December)
+
 impmeans <- as.data.frame(impmeans)
 compmeans <- colMeans(dfcom[, c(1, 5:9)]) %>% 
         as.data.frame()
-meantable <- cbind(impmeans, compmeans)
-colnames(meantable) <- (c("imputed", "complete"))
-meantable$difference <- round(meantable$complete - meantable$imputed, 2)
-meantable[c(2, 4:6), ]
+incmeans <- colMeans(dfinc[, c(1, 5:9)], na.rm = TRUE) %>% 
+        as.data.frame()
+meantable <- cbind(impmeans, compmeans, incmeans)
+colnames(meantable) <- (c("imputed", "complete", "listwise"))
+round(meantable[c(2, 4:6), ], 2)
+```
+
+The mean of active heart rate in the imputed dataset is equal to the mean of the complete data. For *height*, the imputed dataset is actually further off than the listwise deletion method, as is slightly the case with *weight* (but overerstimating it instead of underestimating). However, this is still a minor difference. The imputed mean of *bmi* is closer to the complete data than the listwise-method is, although differences are very minor.
+
+## Variances
+
+In this section, the variance of the imputed, complete and incomplete dataset are compared. Only imputed numeric variables shown.
+
+```{r}
+impdat <- complete(imp1, action="long", include = FALSE)
+pool_var <- with(impdat, by(impdat, .imp, function(x) c(var(x$active), var(x$height), var(x$weight), var(x$bmi))))
+pool_var <- Reduce("+", pool_var) / length(pool_var)
+vartab <- as.data.frame(pool_var)
+#Adapted from: 
+
+vartab$complete <- c(var(dfcom$active),
+                     var(dfcom$height),
+                     var(dfcom$weight),
+                     var(dfcom$bmi))
+
+vartab$listwise <- c(var(dfinc$active, na.rm = TRUE),
+                     var(dfinc$height, na.rm = TRUE),
+                     var(dfinc$weight, na.rm = TRUE),
+                     var(dfinc$bmi, na.rm = TRUE))
+
+colnames(vartab) <- c("imputed", "complete", "listwise")
+rownames(vartab) <- c("active", "height", "weight", "bmi")
+round(vartab, 2)
+```
+
+As with the means, the variances are all close to the complete data. In the case of *weight*, the variance is off by 13.64, while this discrepancy is only 2.79 in the listwise method. However, the listwise method underestimates the variance; multiple imputation is the more conservative approach. 
+
+## Correlations
+
+In this section, matrices of the difference in correlations between the imputed and complete respectively the incomplete and complete datasets are shown.
+
+```{r}
+compcormat <- cor(dfcom[c(1, 5:9)])
+inccormat <- cor(dfinc[c(1, 5:9)], use = "complete")
+test <- micombine.cor(mi.res = imp1, variables = c(1, 5:9))
+impcormat <- attr(test, "r_matrix")
+```
+
+Differences in correlations between the imputed and complete dataset:
+
+```{r}
+round((impcormat - compcormat), 2)
+```
+
+Differences in correlations between the incomplete and complete dataset:
+
+```{r}
+round((inccormat - compcormat), 2)
+```
+
+Looking at the differences between correlations, we can see that the imputed dataset slightly underestimates the correlation between *weight* and *height*, perhaps because *bmi* was not used in their imputations. Overall however, the correlations are much more preserved in the imputed dataset over listwise deletion.
+
+## *Smoke* counts
+
+In this section, the difference in counts of the *smoke* variable are considered.
+
+```{r}
+pool_count <- with(impdat, by(impdat, .imp, function(x) summary(x$smoke)))
+pool_count <- Reduce("+", pool_count) / length(pool_count)
+counttab <- as.data.frame(pool_count)
+counttab$complete <- summary(dfcom$smoke)
+counttab$listwise <- summary(dfinc$smoke)[1:2]
+counttab[nrow(counttab) + 1,] <- colSums(counttab)
+colnames(counttab) <- c("imputed", "complete", "listwise")
+rownames(counttab) <- c("no", "yes", "total")
+round(counttab, 0)
+```
+
+The binary variable *smoke* is represented in a much better way than in the case of listwise deletion.
+
+# Scientifically Interesting Model
+
+```{r}
+fit <- with(imp1, lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age))
+est <- pool(fit)
+a <- as.data.frame(summary(est))
+a[,2:6] <- round(a[,2:6], 2)
+colnames(a) <- c("term", "estimate", "SE", "statistic", "df", "p")
+rownames(a) <- c("(Intercept)", "age", "rest", "bmi", "sex (female)", "smoke (yes)", "intenstiy (moderate)", "intenstiy (low)", "age:bmi")
+a[,2:6]
 ```
 
 ```{r}
-
-
-impdat <- complete(imp1 ,action="long",include = FALSE)
-pool_mean <- with(impdat, by(impdat, .imp, function(x) c(var(x$active), var(x$height), var(x$weight), var(x$bmi))))
-pool_mean <- Reduce("+",pool_mean)/length(pool_mean)
-vartab <- as.data.frame(pool_mean)
-
+a <- miceadds::mi.anova(imp1, "active ~ age + rest + bmi + sex + smoke + intensity + bmi*age", type=2)
+b <- summary(aov(active ~ rest + bmi + sex + intensity + bmi*age, dfcom))
+a
+b
 ```
 
 
-The differences between the imputed and complete data are relatively small. 
-
-```{r}
-test <- micombine.cor(mi.res = imp1, variables = c(5, 7:9))
-attr(test, "r_matrix")
 
 
-acv <- var(dfcom$active)
-hcv <- var(dfcom$height)
-wcv <- var(dfcom$weight)
-bcv <- var(dfcom$bmi)
+## Sources
 
-t <- as.data.frame(c(acv, hcv, wcv, bcv))
-
-```
-
-
-##Sources
-Chunk 9: Lang, K. (2022, 3 december). *Missing Data Theory & Causal Effects, practical 6, sec. 2.2* [R code]. 
+Chunk 9 (imputation model means): Lang, K. (2022, 3 december). *Missing Data Theory & Causal Effects, practical 6, sec. 2.2* [R code]. 
 
 
 #TODO:
