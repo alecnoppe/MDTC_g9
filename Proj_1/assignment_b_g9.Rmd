@@ -19,6 +19,7 @@ library(caret)
 library(cowplot)
 library(Hmisc)
 library(Metrics)
+library(miceadds)
 ```
 
 ```{r}
@@ -55,7 +56,7 @@ pred[c("weight", "height"), "bmi"] <- 0
 
 imp1 <- mice(dfinc,
              m = 5,
-             maxit = 5,
+             maxit = 10,
              method = meth,
              predictorMatrix = pred,
              seed = 1337,
@@ -71,6 +72,8 @@ densityplot(imp1)
 stripplot(imp1)
 ```
 
+Using five iterations, we did not yet see a convergence in some variables. After 10 iterations, all variables showed convergence.
+
 ```{r}
 xyplot(imp1, 
        bmi ~ I(weight / (height / 100)^2), 
@@ -84,18 +87,53 @@ xyplot(imp1,
        xlab="Calculated weight")
 ```
 
+##Comparison of imputed and complete data
+
 ```{r}
-modelcomp <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfcom)
-#dfimp1 <- complete(imp1)  ##BAD WORKFLOW, DO NOT DO THIS see MIMD 5.1
-#modelimp1 <- lm(active ~ rest + bmi + sex + smoke + intensity, data = dfimp1)
-fit1 <- with(imp1, lm(active ~ rest + bmi + sex + smoke + intensity)) %>% 
-        pool()
-                  
-summary(modelcomp)
-summary(fit1)
+impmeans <- complete(imp1, "all") %>% 
+            lapply(function(x) select(x, where(is.numeric)) %>% colMeans()) %>%
+            do.call(rbind, .) %>%
+            colMeans()
+#From: Lang (2022, 3 december)
+impmeans <- as.data.frame(impmeans)
+compmeans <- colMeans(dfcom[, c(1, 5:9)]) %>% 
+        as.data.frame()
+meantable <- cbind(impmeans, compmeans)
+colnames(meantable) <- (c("imputed", "complete"))
+meantable$difference <- round(meantable$complete - meantable$imputed, 2)
+meantable[c(2, 4:6), ]
 ```
-# est <- with(imp, lm(sws ~ log(bw) + odi)) %>% pool()
-summary(est)
+
+```{r}
+
+
+impdat <- complete(imp1 ,action="long",include = FALSE)
+pool_mean <- with(impdat, by(impdat, .imp, function(x) c(var(x$active), var(x$height), var(x$weight), var(x$bmi))))
+pool_mean <- Reduce("+",pool_mean)/length(pool_mean)
+vartab <- as.data.frame(pool_mean)
+
+```
+
+
+The differences between the imputed and complete data are relatively small. 
+
+```{r}
+test <- micombine.cor(mi.res = imp1, variables = c(5, 7:9))
+attr(test, "r_matrix")
+
+
+acv <- var(dfcom$active)
+hcv <- var(dfcom$height)
+wcv <- var(dfcom$weight)
+bcv <- var(dfcom$bmi)
+
+t <- as.data.frame(c(acv, hcv, wcv, bcv))
+
+```
+
+
+##Sources
+Chunk 9: Lang, K. (2022, 3 december). *Missing Data Theory & Causal Effects, practical 6, sec. 2.2* [R code]. 
 
 
 #TODO:
