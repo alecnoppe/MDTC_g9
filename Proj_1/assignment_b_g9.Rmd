@@ -214,7 +214,7 @@ round(counttab, 0)
 
 The binary variable *smoke* is represented in a much better way than in the case of listwise deletion.
 
-# Scientifically Interesting Model
+# Scientifically Interesting Model - *Alec stuff here, current stuff can be thrown*
 
 In this section, the scientifically interesting model of predicting active heart rate by age, resting heart rate, bmi, sex, intensity of exercise and smoking is considered. The pooled imputed datasets, complete dataset and incomplete dataset are compared.
 
