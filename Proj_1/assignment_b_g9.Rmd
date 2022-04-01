@@ -33,6 +33,8 @@ dfinc <- readRDS("incomplete_data_g9.rds")
 
 # Preparing the dataset for imputation
 
+As in the last assignment, we re-calculate some missing cases of *weight* to reflect the actual non-missingness of these cases. This time, we avoid recalculating all cases of *weight* using the following syntax:
+
 ```{r}
 prep_ini <- mice(dfinc, maxit = 0)
 prep_ini_meth <- prep_ini$method
@@ -46,9 +48,14 @@ imp_prep <- mice(dfinc,
 dfinc <- complete(imp_prep)
 ```
 
-As in the last assignment, we re-calculate some missing cases of *weight* to reflect the actual non-missingness of these cases. This time, we avoid recalculating all cases of *weight*.
-
 # Imputation
+
+To impute the missing data, we used the mice algorithm. For the amount of imputations we followed the guideline to set this amount equal to the percentage of missing values (16.8%), rounded up to 17. 
+
+- For the binary variable *smoke*, logistic regression imputation was used. 
+- For the numeric variables *active*, *height* and *weight*, predictive mean matching (pmm) was used. 
+- *BMI* was imputed by passive imputation to preserve the relationsip between *height* and *weight*. To prevent any problems with circularity in the imputations, *bmi* is not used as a predictor for the imputations of *height* or *weight*. 
+
 
 ```{r}
 ini <- mice(dfinc, maxit = 0)
@@ -67,11 +74,6 @@ imp1 <- mice(dfinc,
 
 ```
 
-To impute the missing data, we used the mice algorithm. For the amount of imputations we followed the guideline to set this amount equal to the percentage of missing values (16.8%), rounded up to 17. 
-
-- For the binary variable *smoke*, logistic regression imputation was used. 
-- For the numeric variables *active*, *height* and *weight*, predictive mean matching (pmm) was used. 
-- *BMI* was imputed by passive imputation to preserve the relationsip between *height* and *weight*. To prevent any problems with circularity in the imputations, *bmi* is not used as a predictor for the imputations of *height* or *weight*. 
 
 Using five iterations, we did not yet see a convergence in some variables. This may be because of the relatively high correlation between some variables, most notably (and obviously) *weight* and *height*. After 10 iterations, all variables showed convergence (see below).
 
@@ -83,13 +85,13 @@ plot(imp1)
 
 Density plot of imputed data:
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, out.width = "80%"}
 densityplot(imp1)
 ```
 
 Stripplot of imputed data:
 
-```{r, echo = FALSE}
+```{r echo = FALSE, out.width = "80%"}
 stripplot(imp1)
 ```
 
@@ -99,7 +101,7 @@ These plots look good and show convergence. The stripplots show realistic values
 
 ## Means
 
-In this section, means of the imputed, complete and incomplete dataset are compared. Only imputed numeric variables shown.
+In this section, means of the imputed, complete and incomplete dataset are compared. Only imputed numeric variables shown. As you cannot simply average the column means for each imputation *m*, the following calculation is used to come to the means:
 
 ```{r}
 impmeans <- complete(imp1, "all") %>% 
@@ -107,7 +109,11 @@ impmeans <- complete(imp1, "all") %>%
             do.call(rbind, .) %>%
             colMeans()
 #From: Lang (2022, 3 December)
+```
 
+Table of means in imputed, complete and incomplete dataset:
+
+```{r, echo = FALSE}
 impmeans <- as.data.frame(impmeans)
 compmeans <- colMeans(dfcom[, c(1, 5:9)]) %>% 
         as.data.frame()
@@ -124,12 +130,23 @@ The mean of active heart rate in the imputed dataset is equal to the mean of the
 
 In this section, the variance of the imputed, complete and incomplete dataset are compared. Only imputed numeric variables shown.
 
+Variances for the imputed datasets are calculated as follows:
+
 ```{r}
 impdat <- complete(imp1, action="long", include = FALSE)
-pool_var <- with(impdat, by(impdat, .imp, function(x) c(var(x$active), var(x$height), var(x$weight), var(x$bmi))))
+pool_var <- with(impdat, by(impdat, .imp, function(x) c(var(x$active), 
+                                                        var(x$height), 
+                                                        var(x$weight), 
+                                                        var(x$bmi))))
 pool_var <- Reduce("+", pool_var) / length(pool_var)
+#Adapted from: Heymans & Eekhout (2019)
+```
+
+Table of variances for imputed, complete and incomplete data:
+
+```{r, echo = FALSE}
 vartab <- as.data.frame(pool_var)
-#Adapted from: 
+
 
 vartab$complete <- c(var(dfcom$active),
                      var(dfcom$height),
@@ -146,40 +163,46 @@ rownames(vartab) <- c("active", "height", "weight", "bmi")
 round(vartab, 2)
 ```
 
-As with the means, the variances are all close to the complete data. In the case of *weight*, the variance is off by 13.64, while this discrepancy is only 2.79 in the listwise method. However, the listwise method underestimates the variance; multiple imputation is the more conservative approach. 
+Unsurprisingly due to the added uncertainty of the missingness of the data, the variances are higher in the imputed datasets. However, the amount of added variance is relatively low. In the case of listwise deletion, an underestimation of the variance can even be seen in the event of *weight*.
 
 ## Correlations
 
 In this section, matrices of the difference in correlations between the imputed and complete respectively the incomplete and complete datasets are shown.
 
-```{r}
+```{r, echo = FALSE}
 compcormat <- cor(dfcom[c(1, 5:9)])
 inccormat <- cor(dfinc[c(1, 5:9)], use = "complete")
-test <- micombine.cor(mi.res = imp1, variables = c(1, 5:9))
-impcormat <- attr(test, "r_matrix")
+impcormat <- micombine.cor(mi.res = imp1, variables = c(1, 5:9))
+impcormat <- attr(impcormat, "r_matrix")
 ```
 
 Differences in correlations between the imputed and complete dataset:
 
-```{r}
+```{r, echo = FALSE}
 round((impcormat - compcormat), 2)
 ```
 
 Differences in correlations between the incomplete and complete dataset:
 
-```{r}
+```{r, echo = FALSE}
 round((inccormat - compcormat), 2)
 ```
 
 Looking at the differences between correlations, we can see that the imputed dataset slightly underestimates the correlation between *weight* and *height*, perhaps because *bmi* was not used in their imputations. Overall however, the correlations are much more preserved in the imputed dataset over listwise deletion.
 
-## *Smoke* counts
+## *Smoke* frequencies
 
-In this section, the difference in counts of the *smoke* variable are considered.
+In this section, the difference in frequency of the *smoke* variable are considered. Frequencies for the imputed dataset are calculated as follows:
 
 ```{r}
 pool_count <- with(impdat, by(impdat, .imp, function(x) summary(x$smoke)))
 pool_count <- Reduce("+", pool_count) / length(pool_count)
+#Adapted from: Heymans & Eekhout (2019)
+```
+
+Frequency table for *smoke*
+
+```{r, echo = FALSE}
 counttab <- as.data.frame(pool_count)
 counttab$complete <- summary(dfcom$smoke)
 counttab$listwise <- summary(dfinc$smoke)[1:2]
@@ -193,15 +216,26 @@ The binary variable *smoke* is represented in a much better way than in the case
 
 # Scientifically Interesting Model
 
+In this section, the scientifically interesting model of predicting active heart rate by age, resting heart rate, bmi, sex, intensity of exercise and smoking is considered. The pooled imputed datasets, complete dataset and incomplete dataset are compared.
+
 ```{r}
-fit <- with(imp1, lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age))
+fit <- with(imp1, lm(active ~ age + rest + bmi + sex + smoke + intensity))
 est <- pool(fit)
 a <- as.data.frame(summary(est))
 a[,2:6] <- round(a[,2:6], 2)
 colnames(a) <- c("term", "estimate", "SE", "statistic", "df", "p")
-rownames(a) <- c("(Intercept)", "age", "rest", "bmi", "sex (female)", "smoke (yes)", "intenstiy (moderate)", "intenstiy (low)", "age:bmi")
+rownames(a) <- c("(Intercept)", "age", "rest", "bmi", "sex (female)", "smoke (yes)", "intenstiy (moderate)", "intenstiy (low)")
 a[,2:6]
 ```
+
+Running the regression analysis on the pooled imputed datasets, only *age* and *rest*, originally complete variables, are significant in the model.
+
+```{r}
+compfit <- lm(active ~ age + rest + bmi + sex + smoke + intensity, data = dfcom)
+summary(compfit)
+```
+
+Comparing to the complete model, we see that due to the added imputation uncertainty, the imputed dataset no longer recognizes *bmi* and *intensity (moderate)* 
 
 ```{r}
 a <- miceadds::mi.anova(imp1, "active ~ age + rest + bmi + sex + smoke + intensity + bmi*age", type=2)
@@ -213,11 +247,7 @@ b
 
 
 
-## Sources
+## Code Sources
 
-Chunk 9 (imputation model means): Lang, K. (2022, 3 december). *Missing Data Theory & Causal Effects, practical 6, sec. 2.2* [R code]. 
-
-
-#TODO:
-#kijken naar alternatieven predictive mean matching
-#kijken naar predictor matrix en collineariteit
+- Chunk 9 (imputation model means): Lang, K. (2022, 3 december). *Missing Data Theory & Causal Effects, practical 6, sec. 2.2* [R code]. 
+- Chunks 11, 16 (imputation model variances; *smoke* frequencies): Heymans, M.W. & Eekhout, I. (2019). *Applied Missing Data Analysis with SPSS and Rstudio*, section 5.2.2 [R code].
