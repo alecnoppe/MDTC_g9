@@ -214,40 +214,168 @@ round(counttab, 0)
 
 The binary variable *smoke* is represented in a much better way than in the case of listwise deletion.
 
-# Scientifically Interesting Model - *Alec stuff here, current stuff can be thrown*
+# Scientifically Interesting Model
+After having imputed the missing data, we want to investigate the performance of a linear model trained on the imputed data, as well as the model trained on the complete data. The goal of this section is to deduce whether the imputed dataset can produce similar regression results as the complete dataset, and that there is not a consistent flaw in the imputation.
+*Active heart rate* is dependent on many factors. For this model, *active heart rate* is dependent on *age*, *BMI*, *resting heart rate*, *gender*, *smoking*, *intensity* and an interaction between *BMI* and *age*. These are all the variables included in the dataset, with an additional interaction between BMI and age. This is suggested to increase the active heartrate exponentially, as opposed to a linear addition (Watkinson et al., 2010). The most influential variables are intensity, gender, and age. These variables have the highest slopes, as shown in the table below. 
 
-In this section, the scientifically interesting model of predicting active heart rate by age, resting heart rate, bmi, sex, intensity of exercise and smoking is considered. The pooled imputed datasets, complete dataset and incomplete dataset are compared.
+ 
 
-```{r}
-fit <- with(imp1, lm(active ~ age + rest + bmi + sex + smoke + intensity))
+```{r, echo = FALSE}
+fit <- with(imp1, lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age))
 est <- pool(fit)
 a <- as.data.frame(summary(est))
 a[,2:6] <- round(a[,2:6], 2)
 colnames(a) <- c("term", "estimate", "SE", "statistic", "df", "p")
-rownames(a) <- c("(Intercept)", "age", "rest", "bmi", "sex (female)", "smoke (yes)", "intenstiy (moderate)", "intenstiy (low)")
+rownames(a) <- c("(Intercept)", "age", "rest", "bmi", "sex (female)", "smoke (yes)", "intenstiy (moderate)", "intenstiy (low)", "age:bmi")
 a[,2:6]
 ```
 
-Running the regression analysis on the pooled imputed datasets, only *age* and *rest*, originally complete variables, are significant in the model.
+ 
 
-```{r}
-compfit <- lm(active ~ age + rest + bmi + sex + smoke + intensity, data = dfcom)
-summary(compfit)
+To assess a model's performance, it is important to evaluate the accuracy of the model on seen values (training validation) as well as the accuracy of the model on new data (testing validation). The reason for this is that a model may perform well on data that has been seen before, but not on new data. The metrics used to determine the performance of the model are the sum of squares error *SSE*, relative standard error *RSE*, root mean square error *RMSE* and *R^2*. For the former three metrics, a lower score is ideal. Whereas for the R^2, a score closest to 1 is ideal.
+
+ 
+
+## Training Validation
+
+ 
+
+As seen below, the model trained on the imputed dataset produces less accurate results than the model trained on the complete dataset. However, both models have a R^2 score of only 0.51 and 0.53 respectively. This means that only roughly 50% of the variation of *activity* is explained through the independent variables. This implies that there are latent variables that explain some of the activity variance. Nonetheless, the imputed dataset model performs similarly to the complete dataset model.
+
+```{r, echo = FALSE}
+smp_size <- floor(0.75 * nrow(dfcom))
+
+ 
+
+## set the seed to make your partition reproducible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(dfcom)), size = smp_size)
+
+ 
+
+train.com <- dfcom[train_ind, ]
+test.com <- dfcom[-train_ind, ]
+
+ 
+
+train.imp <- complete(imp1)[train_ind, ]
+test.imp <- complete(imp1)[-train_ind, ]
+
+ 
+
+model.com <- lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age, data=train.com)
+pred.com <- predict(model.com, newdata=train.com)
+
+ 
+
+model.imp <- lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age, data=train.imp)
+pred.imp <- predict(model.imp, newdata=train.imp)
+
+ 
+
+tActivity <- train.com$active
+mActivity <- pred.imp
+
+ 
+
+test.com.active<- tActivity
+pred.com.error <- tActivity - mActivity
+pred.com.R2=1-sum(pred.com.error^2)/sum((test.com.active- mean(test.com.active))^2)
+eval.imp <- c(sse(tActivity, mActivity), rse(tActivity, mActivity), rmse(tActivity, mActivity), pred.com.R2)
+
+ 
+
+tActivity <- train.com$active
+mActivity <- pred.com
+
+ 
+
+test.com.active<- tActivity
+pred.com.error <- tActivity - mActivity
+pred.com.R2=1-sum(pred.com.error^2)/sum((test.com.active- mean(test.com.active))^2)
+eval.com <- c(sse(tActivity, mActivity), rse(tActivity, mActivity), rmse(tActivity, mActivity), pred.com.R2)
+
+ 
+
+eval.full <- data.frame(t(eval.imp), row.names = c("Imputed Data"))
+colnames(eval.full) <- c("SSE", "RSE", "RMSE", "R2")
+eval.full["Complete Data",] = eval.com
+eval.full
 ```
 
-Comparing to the complete model, we see that due to the added imputation uncertainty, the imputed dataset no longer recognizes *bmi* and *intensity (moderate)* 
+ 
 
-```{r}
+
+## Testing Validation
+
+The imputed dataset model has a slightly higher training accuracy than the complete dataset. It has a R^2 of 0.468, whereas the complete dataset model has a R^2 of 0.465. The difference is too small to make any definitive claims on the relative testing accuracy between the two models. But this does suggest that the imputed dataset model yields similar results to the complete dataset model. Thus, the multiple imputation as performed in this research successfully fills in the missing values to an extent that yields proper results for our scientifically interesting model.
+A final remark regarding the training and test scores is that both models show some signs of being overfitted to the training data. The R^2 of the models validated on training accuracy are up to 5% greater than the models validated on testing accuracy. This is a sign of overfitting.
+```{r, echo = FALSE}
+
+ 
+
+model.com <- lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age, data=train.com)
+pred.com <- predict(model.com, newdata=test.com)
+
+ 
+
+model.imp <- lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age, data=train.imp)
+pred.imp <- predict(model.imp, newdata=test.imp)
+
+ 
+
+tActivity <- test.com$active
+mActivity <- pred.imp
+
+ 
+
+test.com.active<- tActivity
+pred.com.error <- tActivity - mActivity
+pred.com.R2=1-sum(pred.com.error^2)/sum((test.com.active- mean(test.com.active))^2)
+eval.imp <- c(sse(tActivity, mActivity), rse(tActivity, mActivity), rmse(tActivity, mActivity), pred.com.R2)
+
+ 
+
+tActivity <- test.com$active
+mActivity <- pred.com
+
+ 
+
+test.com.active<- tActivity
+pred.com.error <- tActivity - mActivity
+pred.com.R2=1-sum(pred.com.error^2)/sum((test.com.active- mean(test.com.active))^2)
+eval.com <- c(sse(tActivity, mActivity), rse(tActivity, mActivity), rmse(tActivity, mActivity), pred.com.R2)
+
+ 
+
+eval.full <- data.frame(t(eval.imp), row.names = c("Imputed Data"))
+colnames(eval.full) <- c("SSE", "RSE", "RMSE", "R2")
+eval.full["Complete Data",] = eval.com
+eval.full
+```
+
+ 
+
+## Analysis of Variance
+
+Finally, an Analysis of variance *ANOVA* analysis is performed on both datasets to conclude whether there is a significant difference in means between variables. ANOVA is a statistical technique that is used to check if the means of two or more groups are significantly different from each other. In our dataset, the most significant variables in terms of mean scores are age and resting heart rate. These variables have the highest F-values and the lowest p-values. Other variables show noteworthy variance, but none have a p-score lower than the significance level (0.05).
+When comparing the two ANOVA regressions, the explained variance of the linear model trained on both datasets are remarkably similar. The residual variance is within 2% of each other, and thus we conclude that the multiple imputation produces a reasonable dataset.
+
+ANOVA table for imputed data:
+```{r, echo = FALSE}
 a <- miceadds::mi.anova(imp1, "active ~ age + rest + bmi + sex + smoke + intensity + bmi*age", type=2)
 b <- summary(aov(active ~ rest + bmi + sex + intensity + bmi*age, dfcom))
-a
+```
+
+ANOVA table for complete data:
+```{r, echo = FALSE}
 b
 ```
 
 
-
-
-## Code Sources
+\newpage
+## Sources
 
 - Chunk 9 (imputation model means): Lang, K. (2022, 3 december). *Missing Data Theory & Causal Effects, practical 6, sec. 2.2* [R code]. 
 - Chunks 11, 16 (imputation model variances; *smoke* frequencies): Heymans, M.W. & Eekhout, I. (2019). *Applied Missing Data Analysis with SPSS and Rstudio*, section 5.2.2 [R code].
+- Watkinson, C., van Sluijs, E. M., Sutton, S., Hardeman, W., Corder, K., & Griffin, S. J. (2010). Overestimation of physical activity level is associated with lower BMI: a cross-sectional analysis. *International journal of behavioral nutrition and physical activity, 7*(1), 1-9.
