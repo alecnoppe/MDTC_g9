@@ -5,7 +5,7 @@ author:
         - Alec Noppe - 6947794
         - Guglielmo de Santis - 6664652
         - Anna Teixeira Rodeia - 6263747
-date: "-4-2022"
+date: "20-4-2022"
 output: pdf_document
 fig_caption: true
 hold_position: true
@@ -230,23 +230,26 @@ kable(round(countperc, 1), caption = "Relative frequencies for *smoke*")
 In both listwise and MI the fraction of non-smokers is slightly overestimated. The differences are, however, very minor.
 
 # Scientifically Interesting Model
+
 After having imputed the missing data, we want to investigate the performance of a linear model trained on the imputed data, as well as the model trained on the complete data. The goal of this section is to deduce whether the imputed dataset can produce similar regression results as the complete dataset, and that there is not a consistent flaw in the imputation.
+
 *Active heart rate* is dependent on many factors. For this model, *active heart rate* is dependent on *age*, *BMI*, *resting heart rate*, *gender*, *smoking*, *intensity* and an interaction between *BMI* and *age*. These are all the variables included in the dataset, with an additional interaction between BMI and age. This is suggested to increase the active heartrate exponentially, as opposed to a linear addition (Watkinson et al., 2010). The most influential variables are intensity, gender, and age. These variables have the highest slopes, as shown in the table below. The table also shows that we have lost quite some information to the missing data. Especially the rest stage, respondents with the gender female and respondents that smoke show a high fmi.
 
 ```{r, echo = FALSE}
 fit <- with(imp1, lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age))
 est <- pool(fit)
 a <- as.data.frame(summary(est))
-a[,2:6] <- round(a[,2:6], 2)
-colnames(a) <- c("term", "estimate", "SE", "statistic", "df", "p")
+a$fmi <- est$pooled$fmi
+a[,2:7] <- round(a[,2:7], 2)
+colnames(a) <- c("term", "estimate", "SE", "statistic", "df", "p", "fmi")
 rownames(a) <- c("(Intercept)", "age", "rest", "bmi", "sex (female)", "smoke (yes)", "intenstiy (moderate)", "intenstiy (low)", "age:bmi")
-kable(a[,2:6])
-est
+kable(a[,2:7])
+#est
 ```
 
  
 
-To assess a model's performance, it is important to evaluate the accuracy of the model on seen values (training validation) as well as the accuracy of the model on new data (testing validation). The reason for this is that a model may perform well on data that has been seen before, but not on new data. The metrics used to determine the performance of the model are the sum of squares error *SSE*, relative standard error *RSE*, root mean square error *RMSE* and *R^2*. For the former three metrics, a lower score is ideal. Whereas for the R^2, a score closest to 1 is ideal.
+To assess a model's performance, it is important to evaluate the accuracy of the model on seen values (training validation) as well as the accuracy of the model on new data (testing validatieon). The reason for this is that a model may perform well on data that has been seen before, but not on new data. The metrics used to determine the performance of the model are the sum of squares error *SSE*, relative standard error *RSE*, root mean square error *RMSE* and *R^2*. For the former three metrics, a lower score is ideal. Whereas for the R^2, a score closest to 1 is ideal.
 
  
 
