@@ -253,7 +253,6 @@ To assess a model's performance, it is important to evaluate the accuracy of the
 
  
 
-To assess a model's performance, it is important to evaluate the accuracy of the model on seen values (training validation) as well as the accuracy of the model on new data (testing validation). The reason for this is that a model may perform well on data that has been seen before, but not on new data. The metrics used to determine the performance of the model are the sum of squares error *SSE*, relative standard error *RSE*, root mean square error *RMSE* and *R^2*. For the former three metrics, a lower score is ideal. Whereas for the R^2, a score closest to 1 is ideal.
 
 $$
 SSE = \sum_{i=1}^{n}{(y_i - y_i')^2}
@@ -382,6 +381,141 @@ eval.full <- data.frame(t(eval.imp), row.names = c("Imputed Data"))
 colnames(eval.full) <- c("SSE", "RSE", "RMSE", "R2")
 eval.full["Complete Data",] = eval.com
 eval.full
+```
+
+```{r}
+splitImps <- function(imps, index) {
+    ## Split the imputed dataset by 'index':
+    tmp <- lapply(imps, split, f = index)
+
+    ## Create lists of subsets of imputed data:
+    out <- list()
+    for(i in 1 : length(tmp[[1]]))
+        out[[i]] <- lapply(tmp, "[[", x = i)
+
+    ## Name output lists:
+    names(out) <- names(tmp[[1]])
+
+    out
+}
+
+modelmaker <- function(data, index) {
+    a <- as.data.frame(data$one[index])
+    colnames(a) <- c("age", "smoke", "sex", "intensity", "active", "rest", "height", "weight", "bmi")
+    b <- as.data.frame(data$two[index])
+    colnames(b) <- c("age", "smoke", "sex", "intensity", "active", "rest", "height", "weight", "bmi")
+    c <- as.data.frame(data$three[index])
+    colnames(c) <- c("age", "smoke", "sex", "intensity", "active", "rest", "height", "weight", "bmi") 
+    d <- as.data.frame(data$four[index])
+    colnames(d) <- c("age", "smoke", "sex", "intensity", "active", "rest", "height", "weight", "bmi")
+    e <- as.data.frame(data$five[index])
+    colnames(e) <- c("age", "smoke", "sex", "intensity", "active", "rest", "height", "weight", "bmi")
+    t1 <- rbind(a,b)
+    t2 <- rbind(t1,c)
+    df <- rbind(t2,d)
+    out <- lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi*age, data=df)
+    val <- list(predict(out, e))
+    return(val)
+    
+}
+
+fetchData <- function(data, index) {
+        a <- as.data.frame(data$five[m])
+        colnames(a) <- c("age", "smoke", "sex", "intensity", "active", "rest", "height", "weight", "bmi")
+        a
+}
+
+predictor <- function(data, fits) {
+        pred <- list()
+        for(m in 1:length(fits))
+                pred[m] <- predict(fits[m], newdata = fetchData(data, m))
+        pred
+}
+
+validator <- function(data, pred, index, sigh) {
+        e <- as.data.frame(data$five[index])
+        colnames(e) <- c("age", "smoke", "sex", "intensity", "active", "rest", "height", "weight", "bmi")
+        f <- as.data.frame(pred)
+        colnames(f) <- c("active")
+        tActivity <- e$active
+        mActivity <- f$active 
+        test.com.active<- tActivity
+        pred.com.error <- tActivity - mActivity
+        pred.com.R2=1-sum(pred.com.error^2)/sum((test.com.active- mean(test.com.active))^2)
+        if (sigh=="r2")
+                return(pred.com.R2)
+        else if(sigh=="sse")
+                return(sse(tActivity, mActivity))
+        else if(sigh=="rse")
+                return(rse(tActivity, mActivity))
+        else if(sigh=="rmse")
+                return(rmse(tActivity, mActivity))
+}
+
+fixer <- function(data) {
+        df <- t(as.data.frame(data))
+        colnames(df) <- c("Metric")
+        mean(df)
+}
+
+findX <- function(data, type) {
+        df <- t(as.data.frame(data))
+        colnames(df) <- c("Metric")
+        if(type=="max")
+                return(max(df))
+        else if(type=="min")
+                return(min(df))
+}
+
+d <- splitImps(complete(imp1, "all"), c("one","two","three","four","five"))
+
+predictions <- list()
+
+for (m in 1 : length(d$one))
+        predictions[m] <- modelmaker(d, m)
+
+predSSE <- list()
+predRSE <- list()
+predRMSE <- list()
+predR2 <- list()
+for (m in 1: length(predictions))
+    predSSE[m] <- validator(d, predictions[m], m, "sse")
+
+for (m in 1: length(predictions))
+    predRSE[m] <- validator(d, predictions[m], m, "rse")
+
+for (m in 1: length(predictions))
+    predRMSE[m] <- validator(d, predictions[m], m, "rmse")
+
+for (m in 1: length(predictions))
+    predR2[m] <- validator(d, predictions[m], m, "r2")
+
+eval.com <- list()
+
+eval.com[1] <- fixer(predSSE)
+eval.com[2] <- fixer(predRSE)
+eval.com[3] <- fixer(predRMSE)
+eval.com[4] <- fixer(predR2)
+
+eval.best <- list()
+eval.best[1] <- findX(predSSE, "max")
+eval.best[2] <- findX(predRSE, "max")
+eval.best[3] <- findX(predRMSE, "max")
+eval.best[4] <- findX(predR2, "max")
+
+eval.worst <- list()
+eval.worst[1] <- findX(predSSE, "min")
+eval.worst[2] <- findX(predRSE, "min")
+eval.worst[3] <- findX(predRMSE, "min")
+eval.worst[4] <- findX(predR2, "min")
+
+
+eval1 <- as.data.frame(eval.com)
+eval2 <- rbind(eval1,eval.best)
+eval <- rbind(eval2,eval.worst)
+rownames(eval) <- c("Average", "Best", "Worst")
+colnames(eval) <- c("SSE", "RSE", "RMSE", "R2")
+eval
 ```
 
 ## Analysis of Variance
