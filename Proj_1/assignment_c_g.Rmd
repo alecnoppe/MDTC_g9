@@ -73,7 +73,7 @@ The default order for imputations is used, as there is no clear reason to specif
 
 ## Number of iterations
 
-5 iterations were chosen as the default to start with. We did not see a convergence of the model yet, so this was increased to 20; after which the model showed convergence (see Appendix, figure 1). This may be due to some obvious correlations between variables: *height* and *weight* are obviously related, and women are generally also shorter and have a lower weight.
+5 iterations were chosen as the default to start with. We did not see a convergence of the model yet, so this was increased to 20; after which the model showed convergence (see Appendix A, figure 1). This may be due to some obvious correlations between variables: *height* and *weight* are obviously related, and women are generally also shorter and have a lower weight.
 
 ## Number of imputed datasets
 
@@ -186,7 +186,7 @@ diff3 <- diff1 - diff2
 ```{r, echo = FALSE}
 kable(round((diff1), 2), caption = "Differences in correlations between the imputed and complete dataset")
 ```
-
+\newpage
 
 ```{r, echo = FALSE}
 kable(round((diff2), 2), caption = "Differences in correlations between the incomplete and complete dataset")
@@ -243,8 +243,7 @@ a$fmi <- est$pooled$fmi
 a[,2:7] <- round(a[,2:7], 2)
 colnames(a) <- c("term", "estimate", "SE", "statistic", "df", "p", "fmi")
 rownames(a) <- c("(Intercept)", "age", "rest", "bmi", "sex (female)", "smoke (yes)", "intenstiy (moderate)", "intenstiy (low)", "age:bmi")
-kable(a[,2:7])
-#est
+kable(a[,2:7], caption = "Estimates")
 ```
 
  
@@ -461,7 +460,7 @@ eval.com <- c(sse(tActivity, mActivity), rse(tActivity, mActivity), rmse(tActivi
 eval.p <- eval.com
 ```
 
-```{r}
+```{r, echo = FALSE}
 predictions <- list()
 
 for (m in 1 : length(d$one))
@@ -509,7 +508,7 @@ eval3 <- rbind(eval2,eval.worst)
 eval <- rbind(eval3, eval.p)
 rownames(eval) <- c("Average (Imputed)", "Best (Imputed)", "Worst (Imputed)", "Complete")
 colnames(eval) <- c("SSE", "RSE", "RMSE", "R2")
-eval
+kable(round(eval, 2), caption = "Training results")
 ```
 
 ## Testing Validation
@@ -584,7 +583,7 @@ eval3 <- rbind(eval2,eval.worst)
 eval <- rbind(eval3, eval.p)
 rownames(eval) <- c("Average (Imputed)", "Best (Imputed)", "Worst (Imputed)", "Complete")
 colnames(eval) <- c("SSE", "RSE", "RMSE", "R2")
-eval
+kable(round(eval, 2), caption = "Testing results")
 ```
 
 
@@ -594,28 +593,31 @@ Finally, an Analysis of variance *ANOVA* analysis is performed on both datasets 
 In the complete dataset, there are four variables under the significane level. These variables are: age, rest, gender, and the interaction between age & bmi. Since the imputed dataset only finds two significant variables, we conclude that some information is systematically misinterpreted by the imputations. We know that some information is lost, because the complete dataset has a lower residual sum of squares (54764 < 56539).
 However, the residual sum of squares is within 2% of eachother. This shows that the imputed dataset model can produce similar results to the complete dataset model, regardless of the difference in variable importance. An explanation for this could be there is an omitted variable that influences the observed variables in a systematic way that is captured partially by the imputed dataset, and partially by the complete dataset. This would explain why there are different variable importances, but a similar residual sum of squares. An example used before is the presence of respiratory issues, which are not dependent on age or resting heartrate, but do inflate the active heart rate. The imputations may inflate a different variable to adjust for this unexplained variance, which results in the different variable importance shown below.
 
-ANOVA table for imputed data:
-```{r, echo = FALSE}
+```{r include=FALSE}
 a <- miceadds::mi.anova(imp1, "active ~ age + rest + bmi + sex + smoke + intensity + bmi*age", type=2)
+aov <- aov(active ~ rest + bmi + sex + intensity + bmi*age, dfcom)
 b <- summary(aov(active ~ rest + bmi + sex + intensity + bmi*age, dfcom))
 ```
 
-ANOVA table for complete data:
+```{r, echo=FALSE}
+kable(a$anova.table, caption = "ANOVA table for imputed data")
+```
+
 ```{r, echo = FALSE}
-b
+kable(b[[1]], caption = "ANOVA table for complete data")
 ```
 
 
 \newpage
 ## Sources
 
-- Chunk 9 (imputation model means): Lang, K. (2022, 3 december). *Missing Data Theory & Causal Effects, practical 6, sec. 2.2* [R code]. 
-- Chunks 11, 16 (imputation model variances; *smoke* frequencies): Heymans, M.W. & Eekhout, I. (2019). *Applied Missing Data Analysis with SPSS and Rstudio*, section 5.2.2 [R code].
+- Chunk 6 (imputation model means): Lang, K. (2022, 3 december). *Missing Data Theory & Causal Effects, practical 6, sec. 2.2* [R code]. 
+- Chunks 8, 13 (imputation model variances; *smoke* frequencies): Heymans, M.W. & Eekhout, I. (2019). *Applied Missing Data Analysis with SPSS and Rstudio*, section 5.2.2 [R code].
 - Watkinson, C., van Sluijs, E. M., Sutton, S., Hardeman, W., Corder, K., & Griffin, S. J. (2010). Overestimation of physical activity level is associated with lower BMI: a cross-sectional analysis. *International journal of behavioral nutrition and physical activity, 7*(1), 1-9.
 - Chunk 23 (Splitting the imputed models): Lang, K. (2022, 15 april). *Missing Data Theory & Causal Effects, miPredictionRoutines.R* [R code].
 \newpage
 
-## Appendix: diagnostic figures
+## Appendix A: diagnostic figures
 
 ```{r convergence, echo = FALSE, fig.height = 6.7, fig.cap = "Convergence of imputed data"}
 plot(imp1,
@@ -629,6 +631,8 @@ densityplot(imp1)
 ```{r stripplot, echo = FALSE, out.width = "90%", fig.cap = "Stripplot of imputed data"}
 stripplot(imp1)
 ```
+
+\newpage
 
 ## Appendix B: Prediction Routine
 
