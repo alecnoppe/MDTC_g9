@@ -450,19 +450,9 @@ test.com <- dfcom[-train_ind, ]
 model.com <- lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age, data=train.com)
 pred.com <- predict(model.com, newdata=train.com)
 
- 
-
-test.com.active<- tActivity
-pred.com.error <- tActivity - mActivity
-pred.com.R2=1-sum(pred.com.error^2)/sum((test.com.active- mean(test.com.active))^2)
-eval.imp <- c(sse(tActivity, mActivity), rse(tActivity, mActivity), rmse(tActivity, mActivity), pred.com.R2)
-
- 
 
 tActivity <- train.com$active
 mActivity <- pred.com
-
- 
 
 test.com.active<- tActivity
 pred.com.error <- tActivity - mActivity
@@ -524,9 +514,9 @@ eval
 
 ## Testing Validation
 
-The best imputed dataset model has a lower testing accuracy than the complete dataset. The table below shows the chosen metrics for the imputed datasets, as well as the complete dataset. The best imputed dataset has an R^2 score of 0.49, whereas the complete dataset model has a R^2 of 0.59. The average testing accuracy of the imputed model is significantly lower than the complete dataset model. It has an average R^2 of 0.37. This shows there is great variance between the different imputed sets. We expect the accuracy of the imputed model to be slightly lower, but the results as shown through these metrics can be attributed to multiple things. The test validation set may be too small to produce consistent results. A train-test split of 0.8-0.2 was chosen for this model. There are a total of 306 rows, thus the test validation set is only 61 rows long. It is also possible that there is an omitted variable that systematically influences the other variables, that has a larger effect on the outcome. A possible omitted variable could be whether the patient has any respiratory issues, since this is proven to lead to increased active heart rate. 
+The best imputed dataset model has a high testing accuracy than the complete dataset. The table below shows the chosen metrics for the imputed datasets, as well as the complete dataset. The best imputed dataset has an R^2 score of 0.49, whereas the complete dataset model has a R^2 of 0.46. The average testing accuracy of the imputed model is significantly lower than the complete dataset model. It has an average R^2 of 0.37. This shows there is great variance between the different imputed sets. We expect the accuracy of the imputed model to be slightly lower, but the results as shown through these metrics can be attributed to multiple things. The test validation set may be too small to produce consistent results. A train-test split of 0.8-0.2 was chosen for this model. There are a total of 306 rows, thus the test validation set is only 61 rows long. It is also possible that there is an omitted variable that systematically influences the other variables, that has a larger effect on the outcome. A possible omitted variable could be whether the patient has any respiratory issues, since this is proven to lead to increased active heart rate. 
 But the results do suggest that the best imputed dataset model yields similar results to the complete dataset model. The only relevant model is the one that performs best, so if we had to predict more unknown heart rates, we would use the best imputed dataset (R^2 of 0.49). Thus, the multiple imputation as performed in this research successfully fills in the missing values to an extent that yields proper results for our scientifically interesting model.
-The model shows significant signs of overfitting to the training data. The training R^2 of the best imputed dataset and complete dataset are 0.10 and 0.03 higher respectively. To improve the fitting of the model, a future implementation could use K-Fold cross validation. This allows for an easier approach to maximize the testing accuracy, since you have more subsets to compare.
+The model shows significant signs of overfitting to the training data. The training R^2 of the best imputed dataset and complete dataset are 0.10 and 0.06 higher respectively. To improve the fitting of the model, a future implementation could use K-Fold cross validation. This allows for an easier approach to maximize the testing accuracy, since you have more subsets to compare.
 ```{r, echo = FALSE}
 
  
