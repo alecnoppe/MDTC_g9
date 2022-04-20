@@ -250,30 +250,44 @@ To assess a model's performance, it is important to evaluate the accuracy of the
 
  
 
+To assess a model's performance, it is important to evaluate the accuracy of the model on seen values (training validation) as well as the accuracy of the model on new data (testing validation). The reason for this is that a model may perform well on data that has been seen before, but not on new data. The metrics used to determine the performance of the model are the sum of squares error *SSE*, relative standard error *RSE*, root mean square error *RMSE* and *R^2*. For the former three metrics, a lower score is ideal. Whereas for the R^2, a score closest to 1 is ideal.
+
+$$
+SSE = \sum_{i=1}^{n}{(y_i - y_i')^2}
+$$
+
+$$
+RSE = \sqrt{\frac{1}{n-2} \sum_{i=1}^{n}{(y_i- \hat{y_i})^2}}
+$$
+$$
+RMSE = \sqrt{\sum_{i=1}^{n}{\frac{(\hat{y_i}-y_i)^2}{n}}}
+$$
+
+$$
+R^2 = 1 - \frac{\sum_{i=1}^{n}{(y_i-\hat{y_i})^2}}{\sum_{i=1}^{n}{(y_i-\bar{y_i})^2}}
+$$
+
 ## Training Validation
 
  
 
-As seen below, the model trained on the imputed dataset produces less accurate results than the model trained on the complete dataset. However, both models have a R^2 score of only 0.51 and 0.53 respectively. This means that only roughly 50% of the variation of *activity* is explained through the independent variables. This implies that there are latent variables that explain some of the activity variance. Nonetheless, the imputed dataset model performs similarly to the complete dataset model.
+As seen below, the model trained on the imputed dataset produces less accurate results than the model trained on the complete dataset. However, both models have a R^2 score of 0.52 and 0.53 respectively. An R^2 of > 0.5, indicates quite good model fit. It shows that roughly 50% of the variation of *activity* is explained through the independent variables. This implies that there are some omitted variables that explain some of the activity variance. Nonetheless, the imputed dataset model performs similarly to the complete dataset model.
 
 ```{r, echo = FALSE}
+fullcom <- complete(imp1, "long")
 smp_size <- floor(0.75 * nrow(dfcom))
-
+smp_comp_size <- floor(0.75 * nrow(fullcom))
  
-
 ## set the seed to make your partition reproducible
 set.seed(123)
 train_ind <- sample(seq_len(nrow(dfcom)), size = smp_size)
-
+train_full_ind <- sample(seq_len(nrow(fullcom)), size = smp_comp_size)
  
-
 train.com <- dfcom[train_ind, ]
 test.com <- dfcom[-train_ind, ]
 
- 
-
-train.imp <- complete(imp1)[train_ind, ]
-test.imp <- complete(imp1)[-train_ind, ]
+train.imp <- complete(fullcom)[train_full_ind, ]
+test.imp <- complete(fullcom)[-train_full_ind, ]
 
  
 
@@ -287,7 +301,7 @@ pred.imp <- predict(model.imp, newdata=train.imp)
 
  
 
-tActivity <- train.com$active
+tActivity <- train.imp$active
 mActivity <- pred.imp
 
  
@@ -322,8 +336,7 @@ eval.full
 
 ## Testing Validation
 
-The imputed dataset model has a slightly higher training accuracy than the complete dataset. It has a R^2 of 0.468, whereas the complete dataset model has a R^2 of 0.465. The difference is too small to make any definitive claims on the relative testing accuracy between the two models. But this does suggest that the imputed dataset model yields similar results to the complete dataset model. Thus, the multiple imputation as performed in this research successfully fills in the missing values to an extent that yields proper results for our scientifically interesting model.
-A final remark regarding the training and test scores is that both models show some signs of being overfitted to the training data. The R^2 of the models validated on training accuracy are up to 5% greater than the models validated on testing accuracy. This is a sign of overfitting.
+The imputed dataset model has a slightly higher training accuracy than the complete dataset. It has a R^2 of 0.51, whereas the complete dataset model has a R^2 of 0.47. This difference is likely because the imputed data model uses far more training data than the complete dataset, as a result of the multiple imputations. Another possible explanation could be that the test set used to evaluate the complete model is too small to accurately indicate the testing accuracy. But these results do suggest that the imputed dataset model yields similar results to the complete dataset model. Thus, the multiple imputation as performed in this research successfully fills in the missing values to an extent that yields proper results for our scientifically interesting model.
 ```{r, echo = FALSE}
 
  
@@ -338,7 +351,7 @@ pred.imp <- predict(model.imp, newdata=test.imp)
 
  
 
-tActivity <- test.com$active
+tActivity <- test.imp$active
 mActivity <- pred.imp
 
  
@@ -367,8 +380,6 @@ colnames(eval.full) <- c("SSE", "RSE", "RMSE", "R2")
 eval.full["Complete Data",] = eval.com
 eval.full
 ```
-
- 
 
 ## Analysis of Variance
 
