@@ -61,7 +61,7 @@ Also referring back to Assignment A, we consider the Missing at Random-assumptio
 
 Predictive Mean Matching (pmm) is used for the numeric variables *active*, *height* and *weight*. For the binary variable *smoke*, logistic imputation regression is used.
 
-*BMI* is a derived variable and thus, passive imputation was used to preserve the relationship between *height* and *weight*. 
+*BMI* is a derived variable and thus, passive imputation was used to preserve the relationship between *height* and *weight* and to fill in the missing data of BMI. 
 
 ## Predictors
 
@@ -77,11 +77,11 @@ The default order for imputations is used, as there is no clear reason to specif
 
 ## Number of imputed datasets
 
-For the amount of imputations we followed the guideline to set this amount equal to the percentage of missing values (16.8%), rounded up to 17. 
+For the amount of imputations we followed the guideline to set this amount equal to the percentage of missing values (16.8%), rounded up to 17. We tried some higher and lower imputations as well, but this did not make a big impact on the plots. Because of this, we choose to keep the number of imputations equal to the percentage of missing values. 
 
 ## Final imputation model
 
-Taking all of the  former into account, the final imputation model looks like this:
+Taking all of the former into account, the final imputation model looks like this:
 
 ```{r}
 ini <- mice(dfinc, maxit = 0)
@@ -231,7 +231,7 @@ In both listwise and MI the fraction of non-smokers is slightly overestimated. T
 
 # Scientifically Interesting Model
 After having imputed the missing data, we want to investigate the performance of a linear model trained on the imputed data, as well as the model trained on the complete data. The goal of this section is to deduce whether the imputed dataset can produce similar regression results as the complete dataset, and that there is not a consistent flaw in the imputation.
-*Active heart rate* is dependent on many factors. For this model, *active heart rate* is dependent on *age*, *BMI*, *resting heart rate*, *gender*, *smoking*, *intensity* and an interaction between *BMI* and *age*. These are all the variables included in the dataset, with an additional interaction between BMI and age. This is suggested to increase the active heartrate exponentially, as opposed to a linear addition (Watkinson et al., 2010). The most influential variables are intensity, gender, and age. These variables have the highest slopes, as shown in the table below. 
+*Active heart rate* is dependent on many factors. For this model, *active heart rate* is dependent on *age*, *BMI*, *resting heart rate*, *gender*, *smoking*, *intensity* and an interaction between *BMI* and *age*. These are all the variables included in the dataset, with an additional interaction between BMI and age. This is suggested to increase the active heartrate exponentially, as opposed to a linear addition (Watkinson et al., 2010). The most influential variables are intensity, gender, and age. These variables have the highest slopes, as shown in the table below. The table also shows that we have lost quite some information to the missing data. Especially the rest stage, respondents with the gender female and respondents that smoke show a high fmi.
 
 ```{r, echo = FALSE}
 fit <- with(imp1, lm(active ~ age + rest + bmi + sex + smoke + intensity + bmi * age))
@@ -241,6 +241,7 @@ a[,2:6] <- round(a[,2:6], 2)
 colnames(a) <- c("term", "estimate", "SE", "statistic", "df", "p")
 rownames(a) <- c("(Intercept)", "age", "rest", "bmi", "sex (female)", "smoke (yes)", "intenstiy (moderate)", "intenstiy (low)", "age:bmi")
 kable(a[,2:6])
+est
 ```
 
  
